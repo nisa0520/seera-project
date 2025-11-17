@@ -1,8 +1,8 @@
 <template>
-  <div class="pt-0">
+  <div class="p-0">
 
     <!-- HERO -->
-    <section class="relative w-full h-[320px] overflow-hidden">
+    <section class="relative w-full h-[320px] overflow-hidden py-0">
       <div class="absolute inset-0 flex items-center justify-center">
         <h1 class="text-5xl font-serif text-black">Koko</h1>
       </div>
@@ -12,7 +12,7 @@
     <div class="w-full max-w-screen-2xl mx-auto px-8">
 
       <!-- FILTER TEXT + COUNT -->
-      <div class="flex justify-between items-center mb-6">
+      <div class="flex justify-between items-center mb-2">
         <button 
           @click="showFilter = !showFilter"
           class="flex items-center gap-2 text-lg cursor-pointer"
@@ -72,7 +72,7 @@
   class="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
 >
     <div class="relative">
-      <img :src="product.image" :alt="product.name" class="w-full h-96 object-cover">
+      <img :src="product.image" :alt="product.name" class="w-full h-56 sm:h-64 md:h-72 object-cover">
 
       <span 
         v-if="product.discount" 

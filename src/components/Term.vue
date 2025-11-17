@@ -1,14 +1,14 @@
 <template>
   <div class="pt-0"> 
     <!-- Hero Section -->
-    <section class="relative w-full h-[320px] overflow-hidden">
+    <section class="relative w-full h-[200px] sm:h-[280px] md:h-[320px] overflow-hidden">
       <img 
         src="/term.png" 
         alt="About Seera" 
-        class="w-full h-full object-cover"
+        class="w-full h-full object-cover object-center"
       >
       <div class="absolute inset-0 flex items-center justify-center">
-        <h1 class="text-5xl font-serif text-black">Term & Conditions</h1>
+        <h1 class="text-3xl sm:text-4xl md:text-5xl font-serif text-black">Term & Conditions</h1>
       </div>
     </section>
 
