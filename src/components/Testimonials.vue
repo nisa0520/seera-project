@@ -1,7 +1,7 @@
 <template>
-  <section class="py-16 bg-white">
+  <section class="py-16 bg-white dark:bg-black transition-colors duration-300">
     <div class="w-full max-w-screen-2xl mx-auto px-4 sm:px-8">
-      <h2 class="font-serif text-4xl font-semibold text-center mb-12 text-gray-900">
+      <h2 class="font-serif text-4xl font-semibold text-center mb-12 text-gray-900 dark:text-white">
         Testimonial
       </h2>
 
@@ -12,13 +12,13 @@
         <div
           v-for="testimonial in testimonials"
           :key="testimonial.name"
-          class="bg-gray-50 rounded-lg p-6 flex-shrink-0 w-[90%] sm:w-[70%] md:w-auto snap-center shadow-sm hover:shadow-md transition-all duration-300"
+          class="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 flex-shrink-0 w-[90%] sm:w-[70%] md:w-auto snap-center shadow-sm hover:shadow-md dark:hover:shadow-lg transition-all duration-300"
         >
           <div class="flex flex-col">
-            <p class="text-gray-700 mb-4 leading-relaxed text-base sm:text-lg">
+            <p class="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed text-base sm:text-lg">
               {{ testimonial.text }}
             </p>
-            <p class="text-gray-700 mb-4 leading-relaxed text-base sm:text-lg">
+            <p class="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed text-base sm:text-lg">
               {{ testimonial.text2 }}
             </p>
 
@@ -36,7 +36,7 @@
               </svg>
             </div>
 
-            <p class="font-semibold text-lg text-gray-900">
+            <p class="font-semibold text-lg text-gray-900 dark:text-white">
               {{ testimonial.name }}
             </p>
           </div>
