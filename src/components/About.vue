@@ -1,5 +1,5 @@
 <template>
-  <div class="pt-0"> 
+  <div class="pt-0 dark:bg-black dark:text-white">
     <!-- Hero Section -->
     <section class="relative w-full h-[200px] sm:h-[280px] md:h-[320px] overflow-hidden">
       <img 
@@ -8,7 +8,10 @@
         class="w-full h-full object-cover object-center"
       >
       <div class="absolute inset-0 flex items-center justify-center">
-        <h1 class="text-3xl sm:text-4xl md:text-5xl font-serif text-black">About</h1>
+        <h1 class="text-3xl sm:text-4xl md:text-5xl font-serif 
+                   text-black dark:text-white">
+          About
+        </h1>
       </div>
     </section>
 
@@ -18,22 +21,24 @@
         <img src="/logo.svg" alt="Seera Project" class="h-32">
       </div>
 
-      <p class="text-gray-700 text-lg mb-8">
-        Lorem ipsum dolor sit amet, consectetur adipisici elit, sed eiusmod tempor incidunt ut 
-        labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrum exercitationem ullam 
-        corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur. Quis aute iure 
-        reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+      <p class="text-gray-700 dark:text-gray-300 text-lg mb-8">
+        Lorem ipsum dolor sit amet, consectetur adipisici elit, sed eiusmod tempor
+        incidunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
+        nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid
+        ex ea commodi consequatur. Quis aute iure reprehenderit in voluptate velit
+        esse cillum dolore eu fugiat nulla pariatur.
       </p>
 
-      <p class="text-gray-700 text-lg mb-8">
-        Excepteur sint obcaecat cupiditat non proident, sunt in culpa qui officia deserunt mollit 
-        anim id est laborum. Lorem ipsum dolor sit amet, consectetur adipisici elit, sed eiusmod 
-        tempor incidunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.
+      <p class="text-gray-700 dark:text-gray-300 text-lg mb-8">
+        Excepteur sint obcaecat cupiditat non proident, sunt in culpa qui officia
+        deserunt mollit anim id est laborum. Lorem ipsum dolor sit amet,
+        consectetur adipisici elit, sed eiusmod tempor incidunt ut labore et dolore
+        magna aliqua. Ut enim ad minim veniam.
       </p>
     </section>
   </div>
 </template>
 
 <script setup>
-// No JS needed for this page
+// No JS needed
 </script>

@@ -103,7 +103,7 @@
     <div class="mt-20">
       <h2 class="text-3xl mb-8">You May Also Like</h2>
 
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         
         <div 
           v-for="item in recommended"
@@ -112,7 +112,7 @@
           class="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
         >
           <div class="relative">
-            <img :src="item.image" class="w-full h-96 object-cover" />
+            <img :src="item.image" class="w-full h-64 sm:h-72 md:h-80 lg:h-96 object-cover" />
             
             <button class="absolute bottom-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100">
               <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,9 +122,9 @@
             </button>
           </div>
 
-          <div class="p-4">
-            <h3 class="text-gray-900 font-semibold mb-1">{{ item.name }}</h3>
-            <p class="text-gray-700">{{ item.price }}</p>
+          <div class="p-4 text-center sm:text-left">
+            <h3 class="text-gray-900 font-semibold mb-1 text-sm sm:text-base md:text-lg">{{ item.name }}</h3>
+            <p class="text-gray-700 text-sm sm:text-base">{{ item.price }}</p>
           </div>
         </div>
 

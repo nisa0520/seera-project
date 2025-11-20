@@ -1,6 +1,10 @@
 <template>
-  <div class="checkout-page" style="padding: 40px;">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-10 py-24">
+  <div 
+    class="checkout-page min-h-screen py-24 px-6 md:px-12 
+           bg-white text-black dark:bg-black dark:text-gray-100 transition"
+  >
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
 
       <!-- LEFT -->
       <div>
@@ -24,42 +28,67 @@
 
         <h2 class="text-xl font-semibold mt-8 mb-3">Metode Pembayaran</h2>
 
-        <div class="flex justify-between items-center border p-3 rounded-lg cursor-pointer">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/9/95/Alfamart_logo.svg"
-               class="h-6">
+        <div 
+          class="flex justify-between items-center border rounded-lg p-3 cursor-pointer 
+                 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 transition"
+        >
+          <img 
+            src="https://upload.wikimedia.org/wikipedia/commons/9/95/Alfamart_logo.svg"
+            class="h-6"
+          >
           <span>Alfamart</span>
         </div>
       </div>
 
       <!-- RIGHT -->
       <div>
-        <div class="border p-4 rounded-xl">
+
+        <!-- PRODUCT CARD -->
+        <div 
+          class="border p-4 rounded-xl bg-white dark:bg-gray-800 
+                 border-gray-300 dark:border-gray-700 transition"
+        >
           <div class="flex items-center gap-4">
-            <img src="/koko-hijau.png" class="w-28 h-32 object-cover">
+            <img src="/koko-hijau.png" class="w-28 h-32 object-cover rounded-md">
 
             <div>
               <h3 class="font-semibold">Koko Pria</h3>
               <p>Rp200.000</p>
-              <p class="text-sm text-gray-500">Hijau</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Hijau</p>
 
               <div class="flex items-center gap-2 mt-2">
-                <button class="border px-3">-</button>
+                <button 
+                  class="border px-3 py-1 bg-white dark:bg-gray-700 
+                         border-gray-300 dark:border-gray-600"
+                >-</button>
+
                 <span>1</span>
-                <button class="border px-3">+</button>
+
+                <button 
+                  class="border px-3 py-1 bg-white dark:bg-gray-700 
+                         border-gray-300 dark:border-gray-600"
+                >+</button>
+
                 <button class="text-red-500">🗑</button>
               </div>
             </div>
           </div>
 
+          <!-- Discount -->
           <div class="mt-4">
-            <p class="text-sm text-gray-700 mb-2">Enter discount code here</p>
+            <p class="text-sm text-gray-700 dark:text-gray-300 mb-2">
+              Enter discount code here
+            </p>
 
-            <div class="flex border">
+            <div class="flex border border-gray-300 dark:border-gray-700 rounded overflow-hidden">
               <input 
-                class="flex-1 px-3 py-2 border-r outline-none"
+                class="flex-1 px-3 py-2 outline-none 
+                       bg-white dark:bg-gray-700 text-black dark:text-gray-100"
                 placeholder="Discount code"
               >
-              <button class="px-4 bg-[#b48b3c] text-black">Apply</button>
+              <button class="px-4 bg-[#b48b3c] text-black">
+                Apply
+              </button>
             </div>
           </div>
 
@@ -69,14 +98,21 @@
           </div>
         </div>
 
+        <!-- TOTAL -->
         <div class="flex justify-between mt-8 text-xl">
           <span>Total</span>
           <span>Rp200.000</span>
         </div>
 
-        <button class="order-btn mt-6" @click="goToOrderDetail">
+        <!-- ORDER BUTTON -->
+        <button 
+          class="order-btn mt-6 w-full bg-[#b48b37] text-white py-4 rounded-lg text-lg 
+                 hover:bg-[#a17a32] transition"
+          @click="goToOrderDetail"
+        >
           Order Now
         </button>
+
       </div>
 
     </div>
@@ -95,16 +131,13 @@ const goToOrderDetail = () => {
 <style>
 .input {
   width: 100%;
-  border: 1px solid #ddd;
   padding: 10px;
   border-radius: 6px;
+  border: 1px solid #ddd;
+  @apply bg-white text-black dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 transition;
 }
+
 .order-btn {
-  width: 100%;
-  background: #b48b37;
-  color: white;
-  padding: 14px;
-  border-radius: 6px;
-  font-size: 18px;
+  transition: 0.2s ease;
 }
 </style>
