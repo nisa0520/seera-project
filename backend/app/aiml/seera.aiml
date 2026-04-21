@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aiml version="1.0.1" encoding="UTF-8">
+  <category>
+    <pattern>HALO</pattern>
+    <template>Halo! Saya Seera Assistant. Saya bisa bantu edukasi skin tone, undertone, dan seasonal color type.</template>
+  </category>
+
+  <category>
+    <pattern>APA ITU SKIN TONE</pattern>
+    <template>Skin tone adalah tingkat kecerahan kulit, mulai dari very fair sampai dark brown.</template>
+  </category>
+
+  <category>
+    <pattern>APA ITU UNDERTONE</pattern>
+    <template>Undertone adalah nuansa dasar kulit: cool, neutral, atau warm.</template>
+  </category>
+
+  <category>
+    <pattern>APA ITU SEASONAL COLOR</pattern>
+    <template>Seasonal color type terdiri dari Spring, Summer, Autumn, dan Winter.</template>
+  </category>
+
+  <category>
+    <pattern>SPRING</pattern>
+    <template>Spring cocok dengan warna warm dan light.</template>
+  </category>
+
+  <category>
+    <pattern>SUMMER</pattern>
+    <template>Summer cocok dengan warna cool dan light.</template>
+  </category>
+
+  <category>
+    <pattern>AUTUMN</pattern>
+    <template>Autumn cocok dengan warna warm dan dark atau medium.</template>
+  </category>
+
+  <category>
+    <pattern>WINTER</pattern>
+    <template>Winter cocok dengan warna cool dan dark atau medium.</template>
+  </category>
+
+  <category>
+    <pattern>*</pattern>
+    <template></template>
+  </category>
+</aiml>

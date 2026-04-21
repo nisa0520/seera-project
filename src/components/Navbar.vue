@@ -62,6 +62,13 @@
         >
           Membership
         </RouterLink>
+        <RouterLink 
+          to="/advisor" 
+          @click="isSidebarOpen = false"
+          class="block text-gray-800 dark:text-white hover:text-[#C99F53] dark:hover:text-[#C99F53] text-lg font-medium transition-colors"
+        >
+          Color Advisor
+        </RouterLink>
       </nav>
     </div>
   </div>

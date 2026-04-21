@@ -9,6 +9,7 @@ import Member from '../components/Member.vue'
 import Koko from '../components/Koko.vue'
 import Login from '../components/Login.vue'
 import SignUp from '../components/SignUp.vue'
+import SeeraAdvisor from '../components/SeeraAdvisor.vue'
 
 const routes = [
   {
@@ -95,6 +96,11 @@ const routes = [
   path: '/artikel/:id',
   name: 'ArtikelDetail',
   component: () => import('../components/ArtikelDetail.vue')
+},
+{
+  path: '/advisor',
+  name: 'SeeraAdvisor',
+  component: SeeraAdvisor
 }
 ]
 
