@@ -66,7 +66,7 @@ Service yang aktif:
 
 Login pgAdmin default:
 
-- Email: `admin@seera.local`
+- Email: `admin@seera.com`
 - Password: `admin123`
 
 Saat menambahkan server di pgAdmin:

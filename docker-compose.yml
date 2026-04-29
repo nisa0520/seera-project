@@ -24,7 +24,7 @@ services:
     container_name: seera-pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@seera.local
+      PGADMIN_DEFAULT_EMAIL: admin@seera.com
       PGADMIN_DEFAULT_PASSWORD: admin123
       PGADMIN_CONFIG_SERVER_MODE: "True"
     ports:
