@@ -100,7 +100,19 @@ def build_chat_response(message: str, skin_tone: float | None, undertone: float 
         return edu, skin_tone, undertone, None, None
 
     parsed_skin = skin_tone if skin_tone is not None else parse_skin_tone(message)
-    parsed_under = undertone if undertone is not None else parse_undertone(message)
+    
+    # Only parse undertone if skin_tone is already set, or if the user explicitly mentioned undertone keywords.
+    # Otherwise a single digit like "1" might match both skin_tone and undertone.
+    parsed_under = undertone
+    if parsed_under is None:
+        if skin_tone is not None:
+            # We are in the "waiting for undertone" state
+            parsed_under = parse_undertone(message)
+        else:
+            # We are in the "waiting for skin tone" state, but user might have typed both keywords
+            msg_lower = message.lower()
+            if "cool" in msg_lower or "neutral" in msg_lower or "warm" in msg_lower:
+                parsed_under = parse_undertone(message)
 
     if parsed_skin is None:
         return f"Halo! Saya Seera Assistant. {SKIN_TONE_HELP}", None, None, None, None
@@ -111,6 +123,71 @@ def build_chat_response(message: str, skin_tone: float | None, undertone: float 
     result = infer_layer1(parsed_skin, parsed_under)
     bot_message = (
         f"Profiling selesai. Seasonal type kamu: {result.seasonal_type.title()} "
-        f"(Y1={result.y1}). Lanjutkan rekomendasi dengan tombol 'Generate Rekomendasi'."
+        f"(Y1={result.y1}). Lanjutkan rekomendasi dengan tombol 'Lihat Rekomendasi'."
     )
     return bot_message, parsed_skin, parsed_under, result.seasonal_type, result.y1
+
+
+def parse_multimodal_blocks(text: str) -> list[dict]:
+    """Parse text containing <visual>, <palette>, <product-card>, <chart> tags into JSON blocks."""
+    blocks = []
+    
+    # regex to match any of the custom tags
+    pattern = r'(<visual[^>]*>|<palette[^>]*>|<product-card[^>]*>|<chart[^>]*>)'
+    
+    parts = re.split(pattern, text)
+    
+    visuals_db = {
+        "fitzpatrick_scale": {"type": "infographic", "url": "/about.png", "alt": "Skala Fitzpatrick (Testing Local Image)"},
+        "undertone_comparison": {"type": "infographic", "url": "https://placehold.co/600x300/f5f5f5/333333?text=Perbandingan+Undertone", "alt": "Warm vs Cool vs Neutral"},
+        "palette_spring": {"type": "palette", "url": "https://placehold.co/400x200/F4C2C2/333?text=Palet+Spring", "alt": "Palet Spring"},
+        "palette_summer": {"type": "palette", "url": "https://placehold.co/400x200/B0C4DE/333?text=Palet+Summer", "alt": "Palet Summer"},
+        "palette_autumn": {"type": "palette", "url": "https://placehold.co/400x200/D2B48C/333?text=Palet+Autumn", "alt": "Palet Autumn"},
+        "palette_winter": {"type": "palette", "url": "https://placehold.co/400x200/E6E6FA/333?text=Palet+Winter", "alt": "Palet Winter"},
+        "seasonal_overview": {"type": "infographic", "url": "https://placehold.co/600x400/f5f5f5/333?text=4+Musim+Warna", "alt": "4 Musim Warna"},
+        "mascot_seera": {"type": "illustration", "url": "https://placehold.co/200x200/c9a86a/fff?text=Seera", "alt": "Maskot Seera"},
+        "rgb_to_hsv_diagram": {"type": "infographic", "url": "https://placehold.co/500x300/f5f5f5/333?text=Tips+Fashion", "alt": "Tips Fashion Diagram"}
+    }
+
+    for part in parts:
+        if not part.strip():
+            continue
+            
+        if part.startswith('<visual'):
+            match = re.search(r'ref="([^"]+)"', part)
+            if match:
+                ref = match.group(1)
+                asset = visuals_db.get(ref)
+                if asset:
+                    blocks.append({"type": "image", "url": asset["url"], "alt": asset["alt"]})
+                else:
+                    blocks.append({"type": "image", "url": f"https://placehold.co/600x300/f5f5f5/333333?text={ref}", "alt": f"Visual {ref}"})
+        elif part.startswith('<palette'):
+            match = re.search(r'season="([^"]+)"', part)
+            if match:
+                season = match.group(1)
+                asset = visuals_db.get(f"palette_{season}")
+                if asset:
+                    blocks.append({"type": "palette", "url": asset["url"], "alt": asset["alt"]})
+                else:
+                    blocks.append({"type": "palette", "url": f"https://placehold.co/400x200/cccccc/333?text=Palette+{season}", "alt": f"Palette {season}"})
+        elif part.startswith('<product-card'):
+            match = re.search(r'id="([^"]+)"', part)
+            if match:
+                pid = match.group(1)
+                blocks.append({"type": "product-card", "data": {"id": pid}})
+        elif part.startswith('<chart'):
+            match_type = re.search(r'type="([^"]+)"', part)
+            match_data = re.search(r'data="([^"]+)"', part)
+            if match_type and match_data:
+                blocks.append({"type": "chart", "chart_type": match_type.group(1), "data_ref": match_data.group(1)})
+        else:
+            # Clean up newlines for text
+            clean_text = part.strip()
+            if clean_text:
+                blocks.append({"type": "text", "content": clean_text})
+                
+    if not blocks:
+        blocks = [{"type": "text", "content": text}]
+        
+    return blocks

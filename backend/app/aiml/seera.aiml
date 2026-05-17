@@ -1,43 +1,95 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <aiml version="1.0.1" encoding="UTF-8">
+
   <category>
     <pattern>HALO</pattern>
-    <template>Halo! Saya Seera Assistant. Saya bisa bantu edukasi skin tone, undertone, dan seasonal color type.</template>
+    <template>
+      Mau aku bantu cari warna pakaian yang paling cocok untukmu? Kita bisa mulai dengan profiling singkat — tidak perlu foto, hanya 2 pertanyaan. ✨
+      &lt;visual ref="mascot_seera"/&gt;
+    </template>
+  </category>
+
+  <category>
+    <pattern>MENU UTAMA</pattern>
+    <template>
+      <srai>HALO</srai>
+    </template>
   </category>
 
   <category>
     <pattern>APA ITU SKIN TONE</pattern>
-    <template>Skin tone adalah tingkat kecerahan kulit, mulai dari very fair sampai dark brown.</template>
+    <template>
+      Skin tone adalah warna permukaan kulitmu yang dibedakan menjadi enam tipe pada skala Fitzpatrick.
+      &lt;visual ref="fitzpatrick_scale"/&gt;
+      Coba lihat skala di atas — kamu masuk tipe yang mana?
+    </template>
   </category>
 
   <category>
     <pattern>APA ITU UNDERTONE</pattern>
-    <template>Undertone adalah nuansa dasar kulit: cool, neutral, atau warm.</template>
+    <template>
+      *Undertone* itu warna di bawah permukaan kulit — tidak berubah walau kulit terbakar matahari. Ada tiga: Cool (kebiruan), Warm (kekuningan), Neutral (campuran).
+    </template>
   </category>
 
+  <category>
+    <pattern>APA ITU SEASONAL COLOR TYPE</pattern>
+    <template>
+      Personal color analysis mencocokkan warna pakaian dengan karakter kulit dan undertone-mu. Ada empat “musim” utama:
+      &lt;palette season="spring"/&gt;
+      &lt;palette season="summer"/&gt;
+      &lt;palette season="autumn"/&gt;
+      &lt;palette season="winter"/&gt;
+    </template>
+  </category>
+  
   <category>
     <pattern>APA ITU SEASONAL COLOR</pattern>
-    <template>Seasonal color type terdiri dari Spring, Summer, Autumn, dan Winter.</template>
+    <template><srai>APA ITU SEASONAL COLOR TYPE</srai></template>
   </category>
 
   <category>
-    <pattern>SPRING</pattern>
-    <template>Spring cocok dengan warna warm dan light.</template>
+    <pattern>TIPS FASHION</pattern>
+    <template>
+      Berdasarkan tipe warnamu, pastikan untuk menghindari warna yang bertolak belakang dengan undertone-mu!
+      - Cool undertone: Hindari warna-warna kuning mustard atau oranye terang.
+      - Warm undertone: Hindari warna-warna icy blue atau silver terang.
+      &lt;visual ref="rgb_to_hsv_diagram"/&gt;
+    </template>
   </category>
 
   <category>
-    <pattern>SUMMER</pattern>
-    <template>Summer cocok dengan warna cool dan light.</template>
+    <pattern>SAYA MAU REKOMENDASI</pattern>
+    <template>
+      Yuk kita mulai 🌟. Pertama — mana yang paling mirip warna kulitmu?
+      &lt;visual ref="fitzpatrick_scale"/&gt;
+    </template>
+  </category>
+  
+  <category>
+    <pattern>LIHAT SEMUA KATEGORI</pattern>
+    <template>
+      Kamu bisa melihat seluruh koleksi kami di halaman katalog!
+      Tapi, saya bisa bantu filter produk yang paling cocok buatmu. Mau coba rekomendasi personal?
+    </template>
+  </category>
+  
+  <category>
+    <pattern>MULAI PROFILING</pattern>
+    <template><srai>SAYA MAU REKOMENDASI</srai></template>
   </category>
 
   <category>
-    <pattern>AUTUMN</pattern>
-    <template>Autumn cocok dengan warna warm dan dark atau medium.</template>
+    <pattern>APA ITU SEERA</pattern>
+    <template>
+      Aku menganalisis warna kulit &amp; undertone-mu lewat percakapan, lalu merekomendasikan warna pakaian yang paling “glow” pakai logika *fuzzy Mamdani* + teori *personal color*.
+      Tidak ada foto yang disimpan — semua via percakapan saja 🤝
+    </template>
   </category>
 
   <category>
-    <pattern>WINTER</pattern>
-    <template>Winter cocok dengan warna cool dan dark atau medium.</template>
+    <pattern>BELAJAR DULU</pattern>
+    <template><srai>APA ITU SEASONAL COLOR TYPE</srai></template>
   </category>
 
   <category>

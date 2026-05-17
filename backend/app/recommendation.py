@@ -27,41 +27,46 @@ def rank_with_saw(items: list[dict], disable_price: bool = False) -> tuple[list[
     else:
         weights = {"c1": 0.70, "c2": 0.15, "c3": 0.10, "c4": 0.05}
 
-    max_c1 = max(item["skor_produk"] for item in items)
-    min_c2 = min(item["price"] for item in items)
-    max_c3 = max(item["rating"] for item in items)
-    max_c4 = max(item["sold_count"] for item in items)
+    max_c1 = float(max(item["skor_produk"] for item in items)) if items else 0.0
+    min_c2 = float(min(item["price"] for item in items)) if items else 0.0
+    max_c3 = float(max(item["rating"] for item in items)) if items else 0.0
+    max_c4 = float(max(item["popularity"] for item in items)) if items else 0.0
 
     for item in items:
-        r1 = item["skor_produk"] / max_c1 if max_c1 else 0
-        r3 = item["rating"] / max_c3 if max_c3 else 0
-        r4 = item["sold_count"] / max_c4 if max_c4 else 0
+        price = float(item["price"])
+        r1 = float(item["skor_produk"]) / max_c1 if max_c1 else 0.0
+        r3 = float(item["rating"]) / max_c3 if max_c3 else 0.0
+        r4 = float(item["popularity"]) / max_c4 if max_c4 else 0.0
 
         if disable_price:
             saw_score = (weights["c1"] * r1) + (weights["c3"] * r3) + (weights["c4"] * r4)
         else:
-            r2 = min_c2 / item["price"] if item["price"] else 0
+            r2 = min_c2 / price if price else 0.0
             saw_score = (weights["c1"] * r1) + (weights["c2"] * r2) + (weights["c3"] * r3) + (weights["c4"] * r4)
 
-        item["saw_score"] = round(saw_score, 4)
+        item["saw_score"] = round(float(saw_score), 4)
 
     items.sort(key=lambda x: x["saw_score"], reverse=True)
     return items, {k: round(v, 4) for k, v in weights.items()}
 
 
 def evaluate_product_colors(y1: float, colors: list[dict]) -> tuple[float, list[float], list[dict]]:
-    ordered_colors = sorted(colors, key=lambda c: c["color_order"])
+    ordered_colors = sorted(colors, key=lambda c: c["dominance_rank"])
     per_color_scores = [infer_layer2(y1=y1, ct=c["ct_value"], cb=c["cb_value"]) for c in ordered_colors]
     skor_produk, roc = aggregate_product_score(per_color_scores)
 
     detail = []
+    # Create 1-based indexing for roc so we can lookup by dominance rank
+    roc_map = {idx: val for idx, val in enumerate(roc, start=1)}
+
     for color, score in zip(ordered_colors, per_color_scores):
         detail.append({
+            "color_id": color["color_id"],
             "hex_code": color["hex_code"],
-            "order": color["color_order"],
+            "dominance_rank": color["dominance_rank"],
             "ct": color["ct_value"],
             "cb": color["cb_value"],
-            "y2": score,
+            "suitability_score": score,
         })
 
-    return skor_produk, roc, detail
+    return skor_produk, roc_map, detail

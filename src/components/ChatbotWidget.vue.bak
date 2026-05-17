@@ -1,0 +1,750 @@
+<template>
+  <!-- Floating Bubble Button -->
+  <button
+    v-if="!isOpen"
+    @click="openChat"
+    id="chatbot-bubble"
+    class="chatbot-bubble"
+    aria-label="Buka Seera Assistant"
+  >
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  </button>
+
+  <!-- Chat Panel Overlay -->
+  <Transition name="chat-panel">
+    <div v-if="isOpen" class="chatbot-panel" role="dialog" aria-label="Seera Assistant Chatbot">
+      <!-- Header -->
+      <div class="chatbot-header">
+        <div class="chatbot-header-left">
+          <div class="chatbot-avatar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="chatbot-title">Seera Assistant</h3>
+            <p class="chatbot-subtitle">Asisten Rekomendasi Pakaian</p>
+          </div>
+        </div>
+        <div class="chatbot-header-actions">
+          <button @click="resetSession" class="chatbot-header-btn" title="Reset sesi">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </button>
+          <button @click="closeChat" class="chatbot-header-btn" title="Tutup">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Messages Area -->
+      <div class="chatbot-messages" ref="messagesContainer">
+        <!-- Privacy Notice -->
+        <div class="privacy-notice" v-if="messages.length > 0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Data kamu hanya dipakai untuk menghitung rekomendasi di sesi ini
+        </div>
+
+        <div v-for="(msg, idx) in messages" :key="idx" :class="['chat-row', msg.role === 'user' ? 'chat-row-user' : 'chat-row-bot']">
+          <!-- Bot avatar -->
+          <div v-if="msg.role === 'bot'" class="bot-msg-avatar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+
+          <div :class="['chat-bubble', msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-bot']">
+            <!-- Render Multimodal Blocks -->
+            <div v-if="msg.blocks" class="multimodal-blocks">
+              <div v-for="(block, bIdx) in msg.blocks" :key="bIdx" class="block-item">
+                <template v-if="block.type === 'text'">
+                  <p v-html="formatMessage(block.content)"></p>
+                </template>
+                <template v-else-if="block.type === 'image' || block.type === 'palette' || block.type === 'infographic'">
+                  <img :src="block.url" :alt="block.alt" class="multimodal-image" loading="lazy" />
+                  <span v-if="block.alt" class="sr-only">{{ block.alt }}</span>
+                </template>
+              </div>
+            </div>
+
+            <!-- Legacy Support or Simple Text -->
+            <template v-if="msg.text && !msg.blocks">
+              <p v-html="formatMessage(msg.text)"></p>
+            </template>
+
+            <!-- Product Cards -->
+            <div v-if="msg.type === 'products'" class="product-list">
+              <div v-for="(prod, i) in msg.items" :key="i" class="product-card-multimodal">
+                <div class="product-card-rank">#{{ prod.rank }}</div>
+                <img v-if="prod.thumbnail_url || prod.image_url" :src="prod.thumbnail_url || prod.image_url" alt="Product Image" class="product-img" />
+                <div class="product-card-info">
+                  <p class="product-card-name">{{ prod.product_name }}</p>
+                  <p class="product-card-price">Rp{{ formatNumber(prod.price) }}</p>
+                  <div class="product-card-meta">
+                    <span class="rating-badge">⭐ {{ prod.rating }}</span>
+                    <span class="score-badge">Skor SAW: {{ prod.saw_score }}</span>
+                  </div>
+                  <div class="product-card-swatches">
+                    <span v-for="(sw, si) in prod.color_swatches" :key="si" class="color-swatch" :style="{ backgroundColor: sw.hex_code }" :title="sw.color_name || sw.hex_code"></span>
+                  </div>
+                </div>
+              </div>
+              <button @click="showFeedback = true" class="btn-feedback-trigger" v-if="!msg.feedbackGiven">
+                Beri Rating Sesi Ini
+              </button>
+            </div>
+
+            <span class="chat-time">{{ msg.time }}</span>
+            <span v-if="msg.role === 'bot' && msg.latency" class="chat-meta">AIML · {{ msg.latency }}</span>
+          </div>
+        </div>
+
+        <!-- Typing indicator -->
+        <div v-if="sending" class="chat-row chat-row-bot">
+          <div class="bot-msg-avatar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div class="chat-bubble chat-bubble-bot typing-indicator">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Replies Area (Context-Aware) -->
+      <div v-if="currentQuickReplies.length" class="quick-replies">
+        <button v-for="(qr, i) in currentQuickReplies" :key="i" @click="quickSend(qr.value)" class="quick-reply-btn">
+          {{ qr.label }}
+        </button>
+      </div>
+
+      <!-- Input Area -->
+      <div class="chatbot-input-area" v-if="!showFeedback">
+        <input
+          v-model="inputMessage"
+          @keyup.enter="handleSend"
+          placeholder="Ketik pesan Anda..."
+          class="chatbot-input"
+          :disabled="sending"
+        />
+        <button @click="handleSend" :disabled="sending || !inputMessage.trim()" class="chatbot-send-btn" aria-label="Kirim pesan">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Feedback Widget Overlay -->
+      <div v-if="showFeedback" class="feedback-overlay">
+        <div class="feedback-panel">
+          <h4>Beri rating rekomendasi kami</h4>
+          <div class="star-rating">
+            <button v-for="s in 5" :key="s" @click="feedbackForm.rating = s" :class="['star-btn', s <= feedbackForm.rating ? 'active' : '']">
+              ★
+            </button>
+          </div>
+          <textarea v-model="feedbackForm.comment" placeholder="Komentar tambahan (opsional)..." class="feedback-input"></textarea>
+          <div class="feedback-actions">
+            <button @click="showFeedback = false" class="btn-cancel">Nanti</button>
+            <button @click="submitSessionFeedback" :disabled="!feedbackForm.rating" class="btn-submit">Kirim</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Transition>
+</template>
+
+<script setup>
+import { ref, nextTick, watch } from 'vue'
+import { sendChat, getRecommendations, submitFeedback } from '../services/seeraApi'
+
+const isOpen = ref(false)
+const messages = ref([])
+const inputMessage = ref('')
+const sending = ref(false)
+const sessionId = ref('')
+const currentQuickReplies = ref([])
+const messagesContainer = ref(null)
+
+const showFeedback = ref(false)
+const feedbackForm = ref({ rating: 0, comment: '' })
+
+const formatNumber = (v) => new Intl.NumberFormat('id-ID').format(v)
+const getTime = () => new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+
+const formatMessage = (text) => {
+  if (!text) return ''
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br/>')
+}
+
+const scrollToBottom = async () => {
+  await nextTick()
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+  }
+}
+
+watch(messages, scrollToBottom, { deep: true })
+watch(currentQuickReplies, scrollToBottom, { deep: true })
+watch(sending, scrollToBottom)
+
+const initWelcome = () => {
+  if (messages.value.length > 0) return
+  
+  // FR-INIT-01 & FR-INIT-02
+  messages.value = [
+    { 
+      role: 'bot', 
+      blocks: [
+        { type: 'text', content: "Assalamu'alaikum! 👋 Saya Seera Assistant." },
+        { type: 'text', content: "Ada yang bisa saya bantu hari ini?" }
+      ],
+      time: getTime() 
+    }
+  ]
+  currentQuickReplies.value = [
+    { label: '🎨 Cari Rekomendasi', value: 'Saya mau rekomendasi' },
+    { label: '📚 Belajar tentang warna kulit saya', value: 'apa itu skin tone' },
+    { label: '👗 Lihat seluruh kategori', value: 'lihat semua kategori' }
+  ]
+}
+
+const openChat = () => {
+  isOpen.value = true
+  initWelcome()
+}
+
+const closeChat = () => {
+  isOpen.value = false
+}
+
+const resetSession = () => {
+  sessionId.value = ''
+  messages.value = []
+  currentQuickReplies.value = []
+  showFeedback.value = false
+  initWelcome()
+}
+
+const pushMsg = (role, blocksOrText, opts = {}) => {
+  const msg = { role, time: getTime(), ...opts }
+  if (typeof blocksOrText === 'string') {
+    msg.text = blocksOrText
+  } else {
+    msg.blocks = blocksOrText
+  }
+  messages.value.push(msg)
+}
+
+const handleSend = async () => {
+  const text = inputMessage.value.trim()
+  if (!text || sending.value) return
+
+  pushMsg('user', text)
+  inputMessage.value = ''
+  sending.value = true
+  currentQuickReplies.value = []
+
+  const startTime = Date.now()
+
+  try {
+    const response = await sendChat({
+      session_id: sessionId.value || null,
+      message: text
+    })
+
+    const latency = `${Date.now() - startTime}ms`
+    sessionId.value = response.session_id
+    
+    // Display bot response (Multimodal blocks)
+    pushMsg('bot', response.blocks || [{ type: 'text', content: response.bot_message }], { latency })
+    
+    // Update quick replies from API
+    currentQuickReplies.value = response.quick_replies || []
+
+    // If API determined profiling is complete or user explicitly asked for recommendations
+    if (text.toLowerCase().includes('lihat rekomendasi') || 
+        (response.seasonal_type && response.quick_replies?.some(qr => qr.value === 'lihat rekomendasi'))) {
+      
+      // Instead of forcing the user to click "Lihat Rekomendasi", we can optionally auto-fetch it.
+      // We will wait for user to click "Lihat Rekomendasi" per the new quick_replies.
+      if (text.toLowerCase().includes('lihat rekomendasi')) {
+         await generateRecommendation()
+      }
+    }
+  } catch (error) {
+    pushMsg('bot', `Maaf, terjadi kesalahan: ${error.message}`)
+  } finally {
+    sending.value = false
+  }
+}
+
+const quickSend = async (text) => {
+  inputMessage.value = text
+  await handleSend()
+}
+
+const generateRecommendation = async () => {
+  if (!sessionId.value) return
+
+  sending.value = true
+  try {
+    const result = await getRecommendations({
+      session_id: sessionId.value,
+      disable_price: false,
+      top_n: 5
+    })
+
+    pushMsg('bot', `Berikut 5 rekomendasi teratas untuk tipe **${result.seasonal_type}** kamu:`)
+    
+    messages.value.push({
+      role: 'bot',
+      type: 'products',
+      items: result.recommendations,
+      time: getTime(),
+      feedbackGiven: false
+    })
+
+    currentQuickReplies.value = [
+      { label: '🔄 Ulang Profiling', value: 'mulai profiling' },
+      { label: '💡 Tips Fashion', value: 'tips fashion' },
+    ]
+  } catch (error) {
+    pushMsg('bot', `Gagal memuat rekomendasi: ${error.message}`)
+  } finally {
+    sending.value = false
+  }
+}
+
+const submitSessionFeedback = async () => {
+  if (!sessionId.value || !feedbackForm.value.rating) return
+  
+  try {
+    await submitFeedback({
+      session_id: sessionId.value,
+      rating: feedbackForm.value.rating,
+      comment: feedbackForm.value.comment
+    })
+    
+    showFeedback.value = false
+    pushMsg('bot', "Terima kasih atas feedback Anda! 🙏")
+    
+    // Mark last product message as feedback given
+    const productMsg = messages.value.slice().reverse().find(m => m.type === 'products')
+    if (productMsg) productMsg.feedbackGiven = true
+    
+  } catch (e) {
+    console.error("Gagal kirim feedback", e)
+    showFeedback.value = false
+  }
+}
+</script>
+
+<style scoped>
+/* Floating Bubble */
+.chatbot-bubble {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 9999;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #C9A86A 0%, #8B6914 100%);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 24px rgba(201, 168, 106, 0.45), 0 2px 8px rgba(0,0,0,0.15);
+  transition: transform 0.3s cubic-bezier(.4,2,.6,1), box-shadow 0.3s;
+}
+.chatbot-bubble:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 32px rgba(201, 168, 106, 0.6), 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Panel */
+.chatbot-panel {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 10000;
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  height: 600px;
+  max-height: calc(100vh - 56px);
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Header */
+.chatbot-header {
+  background: linear-gradient(135deg, #C9A86A 0%, #A07D3A 100%);
+  color: #fff;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.chatbot-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.chatbot-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chatbot-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+}
+.chatbot-subtitle {
+  font-size: 11px;
+  margin: 0;
+  opacity: 0.85;
+}
+.chatbot-header-actions {
+  display: flex;
+  gap: 6px;
+}
+.chatbot-header-btn {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  border-radius: 8px;
+  padding: 6px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chatbot-header-btn:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* Messages */
+.chatbot-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #FAFAF7;
+}
+.chatbot-messages::-webkit-scrollbar { width: 4px; }
+.chatbot-messages::-webkit-scrollbar-thumb { background: #d4c9b0; border-radius: 4px; }
+
+.privacy-notice {
+  text-align: center;
+  font-size: 10px;
+  color: #888;
+  background: #f0f0f0;
+  padding: 6px 12px;
+  border-radius: 12px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 80%;
+}
+
+.chat-row { display: flex; gap: 8px; max-width: 100%; }
+.chat-row-user { justify-content: flex-end; }
+.chat-row-bot { justify-content: flex-start; }
+
+.bot-msg-avatar {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  background: #F0E6D2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #A07D3A;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.chat-bubble {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  position: relative;
+  word-break: break-word;
+}
+.chat-bubble-user {
+  background: linear-gradient(135deg, #C9A86A, #B8953E);
+  color: #1a1a1a;
+  border-bottom-right-radius: 6px;
+}
+.chat-bubble-bot {
+  background: #fff;
+  color: #333;
+  border: 1px solid #EDE8DC;
+  border-bottom-left-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.multimodal-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.multimodal-image {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 4px;
+  border: 1px solid #eee;
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;
+}
+
+.chat-time {
+  display: block;
+  font-size: 10px;
+  opacity: 0.5;
+  margin-top: 6px;
+}
+.chat-meta {
+  display: inline-block;
+  font-size: 9px;
+  opacity: 0.4;
+  margin-left: 8px;
+}
+
+/* Product Cards Multimodal */
+.product-list { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.product-card-multimodal {
+  display: flex;
+  gap: 12px;
+  background: #FAFAF7;
+  border: 1px solid #E0D8C8;
+  border-radius: 12px;
+  padding: 10px;
+  align-items: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.product-card-multimodal:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border-color: #C9A86A;
+}
+.product-card-rank {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: #C9A86A;
+  border-radius: 8px;
+  padding: 4px 8px;
+  min-width: 24px;
+  text-align: center;
+}
+.product-img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #f0f0f0;
+}
+.product-card-info { flex: 1; min-width: 0; }
+.product-card-name { font-size: 13px; font-weight: 600; color: #1a1a1a; margin: 0 0 2px; }
+.product-card-price { font-size: 12px; color: #A07D3A; font-weight: 600; margin: 0 0 4px; }
+.product-card-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+.rating-badge { background: #fff5e6; color: #d97706; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.score-badge { background: #eef2ff; color: #4f46e5; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.product-card-swatches { display: flex; gap: 4px; }
+.color-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid #ddd;
+}
+
+.btn-feedback-trigger {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  background: #f5f0e3;
+  color: #8b6914;
+  border: 1px solid #d4c9b0;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-feedback-trigger:hover {
+  background: #C9A86A;
+  color: #fff;
+}
+
+/* Quick Replies */
+.quick-replies {
+  padding: 10px 16px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: #fff;
+  border-top: 1px solid #EDE8DC;
+}
+.quick-reply-btn {
+  background: #FAFAF7;
+  border: 1px solid #D4C9B0;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: #6B5A38;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.quick-reply-btn:hover {
+  background: #C9A86A;
+  color: #fff;
+  border-color: #C9A86A;
+}
+
+/* Input Area */
+.chatbot-input-area {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #EDE8DC;
+  background: #fff;
+  flex-shrink: 0;
+}
+.chatbot-input {
+  flex: 1;
+  border: 1px solid #E0D8C8;
+  border-radius: 24px;
+  padding: 10px 16px;
+  font-size: 13px;
+  outline: none;
+  background: #FAFAF7;
+  color: #333;
+  transition: border-color 0.2s;
+}
+.chatbot-input:focus { border-color: #C9A86A; }
+.chatbot-input::placeholder { color: #bbb; }
+
+.chatbot-send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #C9A86A, #A07D3A);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s, transform 0.2s;
+  flex-shrink: 0;
+}
+.chatbot-send-btn:hover:not(:disabled) { transform: scale(1.05); }
+.chatbot-send-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Typing Indicator */
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 14px 20px !important;
+}
+.typing-indicator span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #C9A86A;
+  animation: typingDot 1.4s infinite ease-in-out;
+}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingDot {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* Feedback Overlay */
+.feedback-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(4px);
+  padding: 20px;
+  border-top: 1px solid #EDE8DC;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  z-index: 100;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+}
+.feedback-panel h4 { margin: 0 0 12px; font-size: 14px; color: #333; text-align: center; }
+.star-rating { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; }
+.star-btn { background: none; border: none; font-size: 28px; color: #ddd; cursor: pointer; transition: color 0.2s; padding: 0; }
+.star-btn.active, .star-btn:hover { color: #f59e0b; }
+.feedback-input { width: 100%; border: 1px solid #E0D8C8; border-radius: 8px; padding: 10px; font-size: 13px; margin-bottom: 12px; resize: none; height: 60px; font-family: inherit; }
+.feedback-actions { display: flex; gap: 10px; }
+.btn-cancel, .btn-submit { flex: 1; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; }
+.btn-cancel { background: #f0f0f0; color: #555; }
+.btn-submit { background: #C9A86A; color: #fff; }
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Transitions */
+.chat-panel-enter-active { animation: panelIn 0.35s ease-out; }
+.chat-panel-leave-active { animation: panelOut 0.25s ease-in; }
+
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes panelOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(20px) scale(0.95); }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .chatbot-panel {
+    bottom: 0; right: 0;
+    width: 100vw; height: 100vh;
+    max-height: 100vh; border-radius: 0;
+  }
+  .chatbot-bubble {
+    bottom: 20px; right: 20px;
+    width: 54px; height: 54px;
+  }
+}
+</style>
