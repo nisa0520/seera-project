@@ -17,12 +17,11 @@ services:
       retries: 15
 
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:8.14
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@seera.local
+      PGADMIN_DEFAULT_EMAIL: admin@seera.dev
       PGADMIN_DEFAULT_PASSWORD: admin123
-      PGADMIN_CONFIG_SERVER_MODE: "False"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
       - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
