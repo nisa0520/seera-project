@@ -14,6 +14,7 @@ SESSION_STATUS_COMPLETED = "COMPLETED"
 SESSION_STATUS_CANCELLED = "CANCELLED"
 
 STATE_WAITING_SKIN_TONE = "WAITING_SKIN_TONE"
+STATE_WAITING_GENDER = "WAITING_GENDER"
 STATE_WAITING_UNDERTONE = "WAITING_UNDERTONE"
 STATE_WAITING_CONFIRMATION = "WAITING_CONFIRMATION"
 STATE_WAITING_CHANGE_SELECTION = "WAITING_CHANGE_SELECTION"
@@ -40,7 +41,7 @@ class ConversationService:
         session = Session(
             user_id=user.id if user else None,
             session_status=SESSION_STATUS_ACTIVE,
-            conversation_state=STATE_WAITING_SKIN_TONE,
+            conversation_state=STATE_WAITING_GENDER,
         )
         self.db.add(session)
         self.db.flush()

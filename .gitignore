@@ -7,9 +7,48 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Environment files
+.env
+.env.*
+!.env.example
+!backend/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.egg-info/
+.eggs/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local databases and runtime state
+*.db
+*.sqlite
+*.sqlite3
+
+# Node / Vite
 node_modules
 dist
 dist-ssr
+.vite/
+coverage/
 *.local
 
 # Editor directories and files

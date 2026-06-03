@@ -7,6 +7,10 @@ class StartConversationRequest(BaseModel):
     user_fingerprint: Optional[str] = None
 
 
+class GenderRequest(BaseModel):
+    gender: str = Field(..., min_length=1, max_length=30)
+
+
 class SkinToneRequest(BaseModel):
     skin_tone: str = Field(..., min_length=1, max_length=20)
 
@@ -37,6 +41,8 @@ class FreeTextRequest(BaseModel):
 
 
 class ConversationSummary(BaseModel):
+    gender: Optional[str] = None
+    gender_name: Optional[str] = None
     skin_tone: Optional[str] = None
     skin_tone_name: Optional[str] = None
     undertone: Optional[str] = None

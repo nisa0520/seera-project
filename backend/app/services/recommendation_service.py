@@ -48,8 +48,10 @@ class RecommendationService:
 
         return sr
 
-    def _available_products(self) -> list[Product]:
+    def _available_products(self, gender: Optional[str] = None) -> list[Product]:
         stmt = select(Product).where(Product.is_active.is_(True), Product.stock > 0)
+        if gender in {"MALE", "FEMALE"}:
+            stmt = stmt.where(Product.target_gender.in_([gender, "UNISEX"]))
         return list(self.db.execute(stmt).scalars().all())
 
     def generate_recommendation(self, session: Session, seasonal_result: SeasonalResult, top_n: int = 5) -> dict:
@@ -61,7 +63,7 @@ class RecommendationService:
         self.db.add(recommendation)
         self.db.flush()
 
-        products = self._available_products()
+        products = self._available_products(session.gender_snapshot)
         all_match_filters = []
         ranking_rows: list[dict] = []
 
@@ -145,6 +147,7 @@ class RecommendationService:
                 "rating_snapshot": float(product.rating) if product.rating is not None else None,
                 "stock_snapshot": product.stock,
                 "popularity": product.popularity,
+                "target_gender": product.target_gender,
                 "product_score": float(aggregated["total_roc_score"]),
                 "label": aggregated["label"],
                 "label_indonesian": aggregated["label_indonesian"],
@@ -228,6 +231,7 @@ class RecommendationService:
                 "rating": float(item.rating_snapshot) if item.rating_snapshot is not None else None,
                 "stock": item.stock_snapshot,
                 "popularity": product.popularity,
+                "target_gender": product.target_gender,
                 "image_url": product.image_url,
                 "product_score": float(item.product_score),
                 "label": item.product_rank_label,
