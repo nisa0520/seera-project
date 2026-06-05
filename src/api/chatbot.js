@@ -36,6 +36,12 @@ export const chatbotApi = {
       body: JSON.stringify({ user_fingerprint: fingerprint() })
     })
   },
+  setGender(sessionId, gender) {
+    return request(`/api/v1/conversations/${sessionId}/gender`, {
+      method: 'POST',
+      body: JSON.stringify({ gender })
+    })
+  },
   setSkinTone(sessionId, skinTone) {
     return request(`/api/v1/conversations/${sessionId}/skin-tone`, {
       method: 'POST',
