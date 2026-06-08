@@ -1,6 +1,7 @@
 """Run all seeders. Usage: python -m app.seed.run_seed"""
 from app.core.database import SessionLocal, Base, engine
 from app.core.logging import logger
+from app.core.migrations import ensure_schema_current
 from app import models  # noqa: F401  - register models
 
 from app.seed.seed_aiml_categories import seed_aiml
@@ -9,6 +10,8 @@ from app.seed.seed_catalog_dummy import seed_catalog
 
 
 def run() -> None:
+    logger.info("Ensuring database schema is current...")
+    ensure_schema_current()
     logger.info("Creating tables (if missing)...")
     Base.metadata.create_all(bind=engine)
 
