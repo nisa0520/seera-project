@@ -3,6 +3,12 @@ from sqlalchemy.orm import Session as DBSession
 from app.models.aiml_category import AIMLCategory
 
 
+GENDER_QR = [
+    {"label": "Pria", "value": "MALE"},
+    {"label": "Wanita", "value": "FEMALE"},
+    {"label": "Semua koleksi", "value": "PREFER_NOT_TO_SAY"},
+]
+
 SKINTONE_QR = [
     {"label": "Tipe I - Very Fair", "value": "I"},
     {"label": "Tipe II - Fair", "value": "II"},
@@ -20,11 +26,13 @@ UNDERTONE_QR = [
 
 CONFIRM_QR = [
     {"label": "Ya, proses rekomendasi", "value": "CONFIRM", "primary": True},
+    {"label": "Ubah preferensi koleksi", "value": "CHANGE_GENDER"},
     {"label": "Ubah skin tone", "value": "CHANGE_SKIN_TONE"},
     {"label": "Ubah undertone", "value": "CHANGE_UNDERTONE"},
 ]
 
 CHANGE_QR = [
+    {"label": "Ubah preferensi koleksi", "value": "CHANGE_GENDER"},
     {"label": "Ubah skin tone", "value": "CHANGE_SKIN_TONE"},
     {"label": "Ubah undertone", "value": "CHANGE_UNDERTONE"},
 ]
@@ -38,19 +46,34 @@ POST_RECOMMENDATION_QR = [
 ]
 
 EDU_TOPICS_QR = [
-    {"label": "Apa itu skin tone?", "value": "SKIN_TONE"},
-    {"label": "Apa itu undertone?", "value": "UNDERTONE"},
-    {"label": "Apa itu seasonal color type?", "value": "SEASONAL_COLOR_TYPE"},
+    {"label": "Apa Itu Skin Tone?", "value": "SKIN_TONE"},
+    {"label": "Apa Itu Undertone?", "value": "UNDERTONE"},
+    {"label": "Apa Itu Seasonal Color Theory?", "value": "SEASONAL_COLOR_TYPE"},
+    {"label": "Cara Menentukan Skin Tone", "value": "DETERMINE_SKIN_TONE"},
+    {"label": "Cara Menentukan Undertone", "value": "DETERMINE_UNDERTONE"},
     {"label": "Mulai rekomendasi", "value": "START_RECOMMENDATION"},
 ]
 
 
 AIML_SEED = [
     {
+        "pattern": "WELCOME_AND_GENDER_LIST",
+        "template": (
+            "Halo! Saya akan bantu rekomendasikan warna pakaian yang sesuai dengan kulit Anda. "
+            "Supaya pilihan produknya terasa lebih relevan, boleh pilih koleksi yang paling nyaman "
+            "untuk Anda lihat. Ini hanya dipakai untuk menyesuaikan rekomendasi."
+        ),
+        "quick_replies": GENDER_QR,
+    },
+    {
+        "pattern": "INVALID_GENDER",
+        "template": "Pilihan koleksi belum sesuai. Silakan pilih Pria, Wanita, atau Semua koleksi.",
+        "quick_replies": GENDER_QR,
+    },
+    {
         "pattern": "WELCOME_AND_SKINTONE_LIST",
         "template": (
-            "Halo! Saya akan membantu merekomendasikan warna pakaian yang sesuai dengan warna kulit Anda. "
-            "Silakan pilih skin tone Anda berdasarkan skala Fitzpatrick Tipe I sampai VI."
+            "Terima kasih. Sekarang pilih skin tone Anda berdasarkan skala Fitzpatrick Tipe I sampai VI."
         ),
         "quick_replies": SKINTONE_QR,
     },
@@ -75,21 +98,22 @@ AIML_SEED = [
     {
         "pattern": "SUMMARY_AND_CONFIRMATION",
         "template": (
-            "Ringkasan pilihan Anda: skin tone {skin_tone_name}, undertone {undertone_name}. "
+            "Ringkasan pilihan Anda: preferensi koleksi {gender_name}, "
+            "skin tone {skin_tone_name}, undertone {undertone_name}. "
             "Apakah sudah sesuai?"
         ),
         "quick_replies": CONFIRM_QR,
     },
     {
         "pattern": "CHANGE_SELECTION_OPTIONS",
-        "template": "Bagian mana yang ingin Anda ubah? Skin tone atau undertone?",
+        "template": "Bagian mana yang ingin Anda ubah? Preferensi koleksi, skin tone, atau undertone?",
         "quick_replies": CHANGE_QR,
     },
     {
         "pattern": "PRODUCT_RECOMMENDATIONS",
         "template": (
             "Berikut {top_n} rekomendasi produk yang paling cocok untuk Anda berdasarkan profil "
-            "{seasonal_name}."
+            "{seasonal_name} dan preferensi koleksi {gender_name}."
         ),
         "quick_replies": POST_RECOMMENDATION_QR,
     },
@@ -107,7 +131,7 @@ AIML_SEED = [
         "pattern": "NOT_UNDERSTOOD",
         "template": (
             "Maaf, saya belum memahami permintaan Anda. Silakan pilih salah satu opsi yang tersedia "
-            "atau mulai dengan profiling skin tone."
+            "atau mulai dari preferensi koleksi."
         ),
         "quick_replies": [
             {"label": "Mulai profiling", "value": "START_PROFILING", "primary": True},
