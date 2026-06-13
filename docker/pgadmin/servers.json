@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Seera PostgreSQL",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "seera_db",
+      "Username": "seera",
+      "SSLMode": "prefer"
+    }
+  }
+}
