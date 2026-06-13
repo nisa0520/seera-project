@@ -1,4 +1,6 @@
 """Feedback persistence."""
+from typing import Optional
+
 from sqlalchemy.orm import Session as DBSession
 
 from app.models.feedback import Feedback
@@ -9,7 +11,7 @@ class FeedbackService:
     def __init__(self, db: DBSession):
         self.db = db
 
-    def submit(self, session: Session, rating: int | None, comment: str | None, is_skipped: bool) -> Feedback:
+    def submit(self, session: Session, rating: Optional[int], comment: Optional[str], is_skipped: bool) -> Feedback:
         existing = self.db.query(Feedback).filter(Feedback.session_id == session.id).first()
         if existing:
             existing.rating = rating
