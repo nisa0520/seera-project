@@ -15,6 +15,10 @@ class InvalidSkinToneError(SeeraError):
     code = "INVALID_SKIN_TONE"
 
 
+class InvalidGenderError(SeeraError):
+    code = "INVALID_GENDER"
+
+
 class InvalidUndertoneError(SeeraError):
     code = "INVALID_UNDERTONE"
 

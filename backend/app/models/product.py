@@ -17,6 +17,7 @@ class Product(Base):
     popularity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     stock: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     category_id: Mapped[Optional[int]] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    target_gender: Mapped[str] = mapped_column(String(30), default="UNISEX", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
@@ -28,7 +29,9 @@ class Product(Base):
         CheckConstraint("rating IS NULL OR (rating >= 0 AND rating <= 5)", name="ck_product_rating_range"),
         CheckConstraint("popularity >= 0", name="ck_product_popularity_nonneg"),
         CheckConstraint("stock >= 0", name="ck_product_stock_nonneg"),
+        CheckConstraint("target_gender IN ('MALE','FEMALE','UNISEX')", name="ck_product_target_gender"),
         Index("idx_products_available", "is_active", "stock", "rating", "price"),
+        Index("idx_products_target_gender", "target_gender", "is_active", "stock"),
     )
 
     category: Mapped[Optional["Category"]] = relationship("Category", back_populates="products")

@@ -1,15 +1,20 @@
 """Conversation endpoints - core chatbot flow (UC-01)."""
+from typing import Optional
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session as DBSession
 
 from app.core.database import get_db
 from app.core.exceptions import (
+    InvalidGenderError,
     InvalidSkinToneError,
     InvalidUndertoneError,
     InvalidConversationStateError,
 )
+from app.models.session import Session
 from app.schemas.conversation import (
     StartConversationRequest,
+    GenderRequest,
     SkinToneRequest,
     UndertoneRequest,
     ConfirmRequest,
@@ -18,6 +23,7 @@ from app.schemas.conversation import (
 )
 from app.services.conversation_service import (
     ConversationService,
+    STATE_WAITING_GENDER,
     STATE_WAITING_SKIN_TONE,
     STATE_WAITING_UNDERTONE,
     STATE_WAITING_CONFIRMATION,
@@ -26,8 +32,10 @@ from app.services.conversation_service import (
 )
 from app.services.aiml_interpreter import AIMLInterpreter
 from app.services.input_validation_service import (
+    normalize_gender,
     normalize_skin_tone,
     normalize_undertone,
+    gender_payload,
     skin_tone_payload,
     undertone_payload,
 )
@@ -44,6 +52,59 @@ def start_conversation(payload: StartConversationRequest, db: DBSession = Depend
     session = conv.create_session(
         user_fingerprint=payload.user_fingerprint, buyer_id=payload.buyer_id
     )
+    response = aiml.respond("WELCOME_AND_GENDER_LIST")
+    conv.log_message(session, response["message"], "BOT", aiml_category_id=response["aiml_category_id"])
+
+    db.commit()
+    return {
+        "session_id": session.id,
+        "session_status": session.session_status,
+        "conversation_state": session.conversation_state,
+        "message": response["message"],
+        "quick_replies": response["quick_replies"],
+    }
+
+
+@router.post("/{session_id}/gender")
+def set_gender(session_id: int, payload: GenderRequest, db: DBSession = Depends(get_db)):
+    conv = ConversationService(db)
+    aiml = AIMLInterpreter(db)
+
+    session = conv.get_active_session(session_id)
+    conv.require_state(session, STATE_WAITING_GENDER, STATE_WAITING_CHANGE_SELECTION)
+
+    conv.log_message(session, payload.gender, "BUYER")
+
+    code = normalize_gender(payload.gender)
+    if code is None:
+        response = aiml.respond("INVALID_GENDER")
+        conv.log_message(session, response["message"], "BOT", aiml_category_id=response["aiml_category_id"])
+        db.commit()
+        raise InvalidGenderError(response["message"])
+
+    payload_data = gender_payload(code)
+    session.gender_snapshot = code
+    if session.user:
+        session.user.gender = code
+
+    sc = session.skin_characteristic
+    if sc and sc.skintone is not None and sc.undertone is not None:
+        conv.set_state(session, STATE_WAITING_CONFIRMATION)
+        response = aiml.respond("SUMMARY_AND_CONFIRMATION", context=_summary_payload(session))
+        conv.log_message(session, response["message"], "BOT", aiml_category_id=response["aiml_category_id"])
+
+        db.commit()
+        return {
+            "session_id": session.id,
+            "session_status": session.session_status,
+            "conversation_state": session.conversation_state,
+            "message": response["message"],
+            "quick_replies": response["quick_replies"],
+            "gender": payload_data,
+            "summary": _summary_payload(session),
+        }
+
+    conv.set_state(session, STATE_WAITING_SKIN_TONE)
     response = aiml.respond("WELCOME_AND_SKINTONE_LIST")
     conv.log_message(session, response["message"], "BOT", aiml_category_id=response["aiml_category_id"])
 
@@ -54,6 +115,7 @@ def start_conversation(payload: StartConversationRequest, db: DBSession = Depend
         "conversation_state": session.conversation_state,
         "message": response["message"],
         "quick_replies": response["quick_replies"],
+        "gender": payload_data,
     }
 
 
@@ -127,10 +189,7 @@ def set_undertone(session_id: int, payload: UndertoneRequest, db: DBSession = De
 
     response = aiml.respond(
         "SUMMARY_AND_CONFIRMATION",
-        context={
-            "skin_tone_name": sc.skintone_name,
-            "undertone_name": payload_data["name"],
-        },
+        context=_summary_payload(session),
     )
     conv.log_message(session, response["message"], "BOT", aiml_category_id=response["aiml_category_id"])
 
@@ -141,12 +200,7 @@ def set_undertone(session_id: int, payload: UndertoneRequest, db: DBSession = De
         "conversation_state": session.conversation_state,
         "message": response["message"],
         "quick_replies": response["quick_replies"],
-        "summary": {
-            "skin_tone": _skin_code_from_value(float(sc.skintone)),
-            "skin_tone_name": sc.skintone_name,
-            "undertone": code,
-            "undertone_name": payload_data["name"],
-        },
+        "summary": _summary_payload(session),
     }
 
 
@@ -156,11 +210,17 @@ def confirm(session_id: int, payload: ConfirmRequest, db: DBSession = Depends(ge
     aiml = AIMLInterpreter(db)
 
     session = conv.get_active_session(session_id)
-    conv.require_state(session, STATE_WAITING_CONFIRMATION)
+    if payload.is_confirmed:
+        conv.require_state(session, STATE_WAITING_CONFIRMATION)
+    else:
+        conv.require_state(session, STATE_WAITING_CONFIRMATION, STATE_WAITING_CHANGE_SELECTION)
 
     if not payload.is_confirmed:
         target = (payload.change_target or "").upper()
-        if target == "SKIN_TONE":
+        if target == "GENDER":
+            conv.set_state(session, STATE_WAITING_GENDER)
+            response = aiml.respond("WELCOME_AND_GENDER_LIST")
+        elif target == "SKIN_TONE":
             conv.set_state(session, STATE_WAITING_SKIN_TONE)
             response = aiml.respond("WELCOME_AND_SKINTONE_LIST")
         elif target == "UNDERTONE":
@@ -202,6 +262,7 @@ def confirm(session_id: int, payload: ConfirmRequest, db: DBSession = Depends(ge
         context={
             "skin_tone_name": sc.skintone_name,
             "undertone_name": sc.undertone_name,
+            "gender_name": _gender_name_from_code(session.gender_snapshot),
             "seasonal_name": seasonal_result.seasonal_name,
             "top_n": str(payload.top_n),
         },
@@ -324,6 +385,12 @@ def free_text(session_id: int, payload: FreeTextRequest, db: DBSession = Depends
 
     text = payload.message.strip().lower()
 
+    if session.conversation_state in (STATE_WAITING_GENDER, STATE_WAITING_CHANGE_SELECTION):
+        code = normalize_gender(payload.message)
+        if code:
+            db.commit()
+            return set_gender(session_id, GenderRequest(gender=code), db)
+
     # Try interpret as skin tone first if waiting
     if session.conversation_state in (STATE_WAITING_SKIN_TONE, STATE_WAITING_CHANGE_SELECTION):
         code = normalize_skin_tone(payload.message)
@@ -370,6 +437,7 @@ def _serialize_items_for_response(items: list[dict]) -> list[dict]:
             "rating": item["rating_snapshot"],
             "stock": item["stock_snapshot"],
             "popularity": item.get("popularity", 0),
+            "target_gender": item.get("target_gender"),
             "image_url": item.get("image_url"),
             "product_score": item["product_score"],
             "label": item["label"],
@@ -380,7 +448,39 @@ def _serialize_items_for_response(items: list[dict]) -> list[dict]:
 
 
 _SKIN_VALUE_TO_CODE = {1.0: "I", 2.0: "II", 3.0: "III", 4.0: "IV", 5.0: "V", 6.0: "VI"}
+_GENDER_CODE_TO_NAME = {
+    "MALE": "Pria",
+    "FEMALE": "Wanita",
+    "PREFER_NOT_TO_SAY": "Semua koleksi",
+}
 
 
 def _skin_code_from_value(value: float) -> str:
     return _SKIN_VALUE_TO_CODE.get(value, "")
+
+
+def _gender_name_from_code(code: Optional[str]) -> str:
+    return _GENDER_CODE_TO_NAME.get(code or "", "Semua koleksi")
+
+
+def _summary_payload(session: Session) -> dict:
+    sc = session.skin_characteristic
+    skin_tone = None
+    skin_tone_name = None
+    undertone = None
+    undertone_name = None
+    if sc:
+        if sc.skintone is not None:
+            skin_tone = _skin_code_from_value(float(sc.skintone))
+        skin_tone_name = sc.skintone_name
+        undertone = session.undertone_snapshot
+        undertone_name = sc.undertone_name
+
+    return {
+        "gender": session.gender_snapshot,
+        "gender_name": _gender_name_from_code(session.gender_snapshot),
+        "skin_tone": skin_tone,
+        "skin_tone_name": skin_tone_name,
+        "undertone": undertone,
+        "undertone_name": undertone_name,
+    }
