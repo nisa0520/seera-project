@@ -11,6 +11,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.vite/
+coverage/
 *.local
 
 # Editor directories and files
@@ -42,14 +44,19 @@ build/
 .venv/
 venv/
 env/
+ENV/
 .python-version
 
 # Python tooling caches & coverage
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.pyre/
+.tox/
+.nox/
 .coverage
 .coverage.*
+coverage.xml
 htmlcov/
 *.pid
 
