@@ -15,6 +15,10 @@ class InvalidSkinToneError(SeeraError):
     code = "INVALID_SKIN_TONE"
 
 
+class InvalidGenderError(SeeraError):
+    code = "INVALID_GENDER"
+
+
 class InvalidUndertoneError(SeeraError):
     code = "INVALID_UNDERTONE"
 
@@ -41,4 +45,15 @@ class EducationTopicNotFoundError(SeeraError):
     code = "EDUCATION_TOPIC_NOT_FOUND"
 
     def __init__(self, message: str = "Topik edukasi tidak tersedia."):
+        super().__init__(message, status_code=status.HTTP_404_NOT_FOUND)
+
+
+class InvalidInputMethodError(SeeraError):
+    code = "INVALID_INPUT_METHOD"
+
+
+class ImageAnalysisNotFoundError(SeeraError):
+    code = "IMAGE_ANALYSIS_NOT_FOUND"
+
+    def __init__(self, message: str = "Hasil analisis image belum tersedia untuk sesi ini."):
         super().__init__(message, status_code=status.HTTP_404_NOT_FOUND)

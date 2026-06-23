@@ -6,6 +6,9 @@ from pathlib import Path
 # Use isolated SQLite per test session - set BEFORE any app imports
 TEST_DB_FILE = tempfile.NamedTemporaryFile(suffix=".db", delete=False).name
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_FILE}"
+# Seed only the base hand-authored catalog in tests (exclude the large synthetic
+# dataset produced by app.catalog_gen) so the suite stays fast and deterministic.
+os.environ.setdefault("SEED_INCLUDE_GENERATED", "0")
 
 # Ensure backend root on sys.path
 backend_root = Path(__file__).resolve().parents[2]

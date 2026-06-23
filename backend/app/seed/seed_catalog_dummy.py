@@ -1,4 +1,6 @@
 """Seed catalog products and colors using local public clothing assets."""
+import os
+
 from sqlalchemy.orm import Session as DBSession
 from app.models.category import Category
 from app.models.color import Color
@@ -53,6 +55,7 @@ PRODUCTS_SEED = [
         "stock": 24,
         "popularity": 180,
         "category": "Atasan",
+        "target_gender": "MALE",
         "is_active": True,
         "colors": [("Off White", "DOMINANT", 100.0)],
         "image_url": "/koko-putih.png",
@@ -66,6 +69,7 @@ PRODUCTS_SEED = [
         "stock": 18,
         "popularity": 135,
         "category": "Atasan",
+        "target_gender": "MALE",
         "is_active": True,
         "colors": [("Ash Gray", "DOMINANT", 100.0)],
         "image_url": "/koko-abu.png",
@@ -79,6 +83,7 @@ PRODUCTS_SEED = [
         "stock": 20,
         "popularity": 150,
         "category": "Atasan",
+        "target_gender": "MALE",
         "is_active": True,
         "colors": [("Slate Blue", "DOMINANT", 100.0)],
         "image_url": "/koko-biru.png",
@@ -92,6 +97,7 @@ PRODUCTS_SEED = [
         "stock": 16,
         "popularity": 170,
         "category": "Atasan",
+        "target_gender": "MALE",
         "is_active": True,
         "colors": [("Sage Green", "DOMINANT", 100.0)],
         "image_url": "/koko-hijau.png",
@@ -105,6 +111,7 @@ PRODUCTS_SEED = [
         "stock": 12,
         "popularity": 115,
         "category": "Atasan",
+        "target_gender": "MALE",
         "is_active": True,
         "colors": [("Chocolate Brown", "DOMINANT", 100.0)],
         "image_url": "/koko-coklat.png",
@@ -118,6 +125,7 @@ PRODUCTS_SEED = [
         "stock": 10,
         "popularity": 105,
         "category": "Atasan",
+        "target_gender": "MALE",
         "is_active": True,
         "colors": [
             ("Taupe", "DOMINANT", 60.0),
@@ -135,6 +143,7 @@ PRODUCTS_SEED = [
         "stock": 9,
         "popularity": 95,
         "category": "Atasan",
+        "target_gender": "MALE",
         "is_active": True,
         "colors": [
             ("Deep Teal", "DOMINANT", 80.0),
@@ -151,6 +160,7 @@ PRODUCTS_SEED = [
         "stock": 0,
         "popularity": 200,
         "category": "Dress",
+        "target_gender": "FEMALE",
         "is_active": True,
         "colors": [("Black", "DOMINANT", 100.0)],
         "image_url": "/abaya-hitam.png",
@@ -164,6 +174,7 @@ PRODUCTS_SEED = [
         "stock": 14,
         "popularity": 125,
         "category": "Atasan",
+        "target_gender": "MALE",
         "is_active": True,
         "colors": [
             ("Off White", "DOMINANT", 85.0),
@@ -180,6 +191,7 @@ PRODUCTS_SEED = [
         "stock": 17,
         "popularity": 128,
         "category": "Atasan",
+        "target_gender": "MALE",
         "is_active": True,
         "colors": [("Navy Blue", "DOMINANT", 100.0)],
         "image_url": "/koko.png",
@@ -193,6 +205,7 @@ PRODUCTS_SEED = [
         "stock": 13,
         "popularity": 145,
         "category": "Dress",
+        "target_gender": "FEMALE",
         "is_active": True,
         "colors": [
             ("Dusty Pink", "DOMINANT", 75.0),
@@ -209,6 +222,7 @@ PRODUCTS_SEED = [
         "stock": 21,
         "popularity": 132,
         "category": "Dress",
+        "target_gender": "FEMALE",
         "is_active": True,
         "colors": [
             ("Mocha Brown", "DOMINANT", 70.0),
@@ -225,6 +239,7 @@ PRODUCTS_SEED = [
         "stock": 8,
         "popularity": 118,
         "category": "Dress",
+        "target_gender": "FEMALE",
         "is_active": True,
         "colors": [
             ("Peach", "DOMINANT", 70.0),
@@ -241,6 +256,7 @@ PRODUCTS_SEED = [
         "stock": 15,
         "popularity": 108,
         "category": "Dress",
+        "target_gender": "FEMALE",
         "is_active": True,
         "colors": [
             ("Cream", "DOMINANT", 70.0),
@@ -257,6 +273,7 @@ PRODUCTS_SEED = [
         "stock": 11,
         "popularity": 112,
         "category": "Dress",
+        "target_gender": "FEMALE",
         "is_active": True,
         "colors": [
             ("Charcoal", "DOMINANT", 65.0),
@@ -273,6 +290,7 @@ PRODUCTS_SEED = [
         "stock": 25,
         "popularity": 122,
         "category": "Aksesoris",
+        "target_gender": "FEMALE",
         "is_active": True,
         "colors": [
             ("Lavender", "DOMINANT", 65.0),
@@ -282,6 +300,26 @@ PRODUCTS_SEED = [
         "description": "Hijab soft tone dari asset public/hijab.png.",
     },
 ]
+
+
+# --- Additive ingest of generated synthetic catalog (optional) -----------------
+# Produced by ``python -m app.catalog_gen``. This only ADDS data entries so the
+# UNCHANGED seed_products() below can ingest them verbatim; if the generated module
+# is absent the behaviour is identical to before (silent no-op). No logic changes.
+# Toggle with SEED_INCLUDE_GENERATED (default on); set to 0 to seed only the base
+# hand-authored catalog (e.g. fast test runs).
+def _include_generated() -> bool:
+    return os.getenv("SEED_INCLUDE_GENERATED", "1").strip().lower() not in ("0", "false", "no")
+
+
+if _include_generated():
+    try:
+        from app.seed.generated.generated_products import (  # noqa: E402
+            GENERATED_PRODUCTS_SEED as _GENERATED_PRODUCTS_SEED,
+        )
+        PRODUCTS_SEED = PRODUCTS_SEED + list(_GENERATED_PRODUCTS_SEED)
+    except ImportError:
+        pass
 
 
 def seed_colors(db: DBSession) -> dict[str, int]:
@@ -351,6 +389,7 @@ def seed_products(db: DBSession) -> None:
                 stock=entry["stock"],
                 popularity=entry["popularity"],
                 category_id=category_ids.get(entry["category"]),
+                target_gender=entry.get("target_gender", "UNISEX"),
                 is_active=entry["is_active"],
                 image_url=entry.get("image_url"),
                 description=entry.get("description"),
@@ -364,6 +403,7 @@ def seed_products(db: DBSession) -> None:
             product.stock = entry["stock"]
             product.popularity = entry["popularity"]
             product.category_id = category_ids.get(entry["category"])
+            product.target_gender = entry.get("target_gender", "UNISEX")
             product.is_active = entry["is_active"]
             product.image_url = entry.get("image_url")
             product.description = entry.get("description")

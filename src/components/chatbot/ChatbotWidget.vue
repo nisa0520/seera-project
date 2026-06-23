@@ -29,7 +29,7 @@
             <div class="seera-chatbot__avatar" />
             <div>
               <div class="seera-chatbot__title">Seera</div>
-              <div class="seera-chatbot__subtitle">● Online · color stylist</div>
+              <div class="seera-chatbot__subtitle">● Online</div>
             </div>
           </div>
           <div class="seera-chatbot__head-actions">
@@ -55,11 +55,12 @@
             :key="idx"
             class="seera-chatbot__row"
             :class="{ 'is-user': item.role === 'user' }"
+            :data-message-index="idx"
           >
             <div v-if="item.role !== 'user'" class="seera-chatbot__row-avatar" />
             <div
               class="seera-chatbot__row-stack"
-              :class="{ 'seera-chatbot__row-stack--wide': item.kind === 'fitz' || item.kind === 'undertone' }"
+              :class="{ 'seera-chatbot__row-stack--wide': item.kind === 'gender' || item.kind === 'fitz' || item.kind === 'undertone' || item.kind === 'education' || item.kind === 'camera' || item.kind === 'image-result' || item.kind === 'vton' }"
             >
               <!-- User bubble -->
               <div v-if="item.role === 'user'" class="seera-chatbot__bubble seera-chatbot__bubble--user">
@@ -68,7 +69,83 @@
 
               <template v-else>
                 <!-- Text bubble -->
-                <div v-if="item.text" class="seera-chatbot__bubble" v-html="formatBubble(item.text)" />
+                <div v-if="item.text && item.kind !== 'education'" class="seera-chatbot__bubble" v-html="formatBubble(item.text)" />
+
+                <!-- ═══ Education content ═══ -->
+                <div v-if="item.kind === 'education' && item.education" class="seera-chatbot__bubble seera-chatbot__bubble--education">
+                  <div class="seera-education__eyebrow">EDUKASI PERSONAL COLOR</div>
+                  <div class="seera-education__title">{{ item.education.title }}</div>
+                  <div
+                    v-if="item.education.intro"
+                    class="seera-education__text"
+                    v-html="formatBubble(item.education.intro)"
+                  />
+                  <div v-if="item.education.cards.length" class="seera-education__cards">
+                    <div
+                      v-for="card in item.education.cards"
+                      :key="card.title"
+                      class="seera-education__card"
+                      :style="{
+                        '--education-card-accent': card.accent,
+                        '--education-card-bg': card.bg
+                      }"
+                    >
+                      <div class="seera-education__card-head">
+                        <span v-if="card.showSwatch" class="seera-education__card-swatch" aria-hidden="true" />
+                        <div class="seera-education__card-title">{{ card.title }}</div>
+                      </div>
+                      <div class="seera-education__card-body" v-html="formatBubble(card.body)" />
+                    </div>
+                  </div>
+                  <div v-if="item.education.steps.length" class="seera-education__steps">
+                    <div
+                      v-for="step in item.education.steps"
+                      :key="step.number"
+                      class="seera-education__step"
+                    >
+                      <div class="seera-education__step-num">{{ step.number }}</div>
+                      <div class="seera-education__step-copy">
+                        <div class="seera-education__step-title">{{ step.title }}</div>
+                        <div class="seera-education__step-body" v-html="formatBubble(step.body)" />
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    v-if="!item.education.steps.length && !item.education.cards.length"
+                    class="seera-education__text"
+                    v-html="formatBubble(item.education.content)"
+                  />
+                  <div
+                    v-if="item.education.outro"
+                    class="seera-education__note"
+                    v-html="formatBubble(item.education.outro)"
+                  />
+                </div>
+
+                <!-- ═══ Gender / collection preference selector ═══ -->
+                <div v-if="item.kind === 'gender'" class="seera-chatbot__block">
+                  <div class="seera-chatbot__block-tag">PREFERENSI KOLEKSI</div>
+                  <div class="seera-chatbot__block-title">Koleksi apa yang paling nyaman untukmu?</div>
+                  <div class="seera-gender">
+                    <div
+                      v-for="g in GENDER_DATA"
+                      :key="g.id"
+                      class="seera-gender__card"
+                      :class="{
+                        'seera-gender__card--selected': selectedGender === g.id,
+                        'seera-gender__card--disabled': loading || idx !== lastBotIndex
+                      }"
+                      @click="!loading && idx === lastBotIndex && pickGender(g)"
+                      role="button"
+                      :tabindex="idx === lastBotIndex && !loading ? 0 : -1"
+                      :aria-label="g.aria"
+                      @keydown.enter="!loading && idx === lastBotIndex && pickGender(g)"
+                    >
+                      <div class="seera-gender__cap">{{ g.label }}</div>
+                      <div class="seera-gender__hint">{{ g.hint }}</div>
+                    </div>
+                  </div>
+                </div>
 
                 <!-- ═══ Fitzpatrick skin tone selector ═══ -->
                 <div v-if="item.kind === 'fitz'" class="seera-chatbot__block">
@@ -137,6 +214,7 @@
                 <div v-if="item.kind === 'summary' && item.summary" class="seera-chatbot__block">
                   <div class="seera-chatbot__block-tag">RINGKASAN</div>
                   <div class="seera-chatbot__summary">
+                    <div><strong>Koleksi:</strong> {{ item.summary.gender_name }}</div>
                     <div><strong>Skin tone:</strong> {{ item.summary.skin_tone_name }} ({{ item.summary.skin_tone }})</div>
                     <div><strong>Undertone:</strong> {{ item.summary.undertone_name }}</div>
                   </div>
@@ -193,6 +271,14 @@
                           <em>{{ Math.round(p.product_score * 100) }}</em>/100
                         </span>
                         <span class="seera-chatbot__product-rank">#{{ p.rank }}</span>
+                        <button
+                          type="button"
+                          class="seera-chatbot__product-action"
+                          :aria-label="`Lihat detail produk ${p.product_name}`"
+                          @click.stop="goToProductDetail(p)"
+                        >
+                          Lihat detail produk
+                        </button>
                       </div>
                       <div class="seera-chatbot__product-info">
                         <div class="seera-chatbot__product-title">{{ p.product_name }}</div>
@@ -210,6 +296,19 @@
                             :title="`${c.color_name} (${c.label_indonesian})`"
                           />
                         </div>
+                        <!-- Status realistic try-on per produk + tier (PRD AssetTier 16.1) -->
+                        <button
+                          v-if="p.vton_supported"
+                          type="button"
+                          class="seera-chatbot__qr seera-chatbot__qr--try-face"
+                          :disabled="loading"
+                          @click.stop="openVtonPanel(p, item.items)"
+                        >
+                          {{ p.vton_asset_tier === 'vton_ready' ? 'Coba Realistic Try-On' : 'Coba Preview (Eksperimental)' }}
+                        </button>
+                        <span v-else class="seera-chatbot__vton-unavailable">
+                          Try-On belum tersedia
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -229,6 +328,35 @@
                     <div v-if="!item.colors.length" class="seera-chatbot__empty">Tidak ada warna yang perlu dihindari secara khusus.</div>
                   </div>
                 </div>
+
+                <!-- ═══ Kamera + face guide (FR-IMG-02/03) ═══ -->
+                <CameraCapturePanel
+                  v-if="item.kind === 'camera' && idx === lastBotIndex"
+                  :disabled="loading"
+                  @captured="onImageCaptured"
+                  @manual="chooseManualInput"
+                />
+
+                <!-- ═══ Hasil deteksi image (FR-IMG-08) ═══ -->
+                <ImageAnalysisResultCard
+                  v-if="item.kind === 'image-result' && item.imageResult"
+                  :result="item.imageResult"
+                  :face-crop="faceCropUrl"
+                  :sample-hex="item.imageResult.sample_hex"
+                  :disabled="loading || idx !== lastBotIndex"
+                  @confirm="onImageResultConfirm"
+                  @retake="onImageRetake"
+                />
+
+                <!-- ═══ Realistic Virtual Try-On / CatVTON (PRD CatVTON) ═══ -->
+                <VtonTryOnPanel
+                  v-if="item.kind === 'vton' && item.vton"
+                  :session-id="sessionId"
+                  :initial-product="item.vton.product"
+                  :products="item.vton.products"
+                  :backgrounds="backgroundPresets"
+                  @back="showRecommendationAgain"
+                />
 
                 <!-- ═══ Feedback ═══ -->
                 <div v-if="item.kind === 'feedback'" class="seera-chatbot__block">
@@ -256,9 +384,9 @@
                   </div>
                 </div>
 
-                <!-- Quick replies — tidak tampil untuk fitz/undertone -->
+                <!-- Quick replies — tidak tampil untuk selector khusus -->
                 <div
-                  v-if="item.quick_replies && idx === lastBotIndex && !loading && item.kind !== 'fitz' && item.kind !== 'undertone'"
+                  v-if="item.quick_replies && idx === lastBotIndex && !loading && item.kind !== 'gender' && item.kind !== 'fitz' && item.kind !== 'undertone' && item.kind !== 'camera' && item.kind !== 'image-result' && item.kind !== 'vton'"
                   class="seera-chatbot__quick-replies"
                 >
                   <button
@@ -309,9 +437,37 @@
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { chatbotApi } from '../../api/chatbot'
+import CameraCapturePanel from './CameraCapturePanel.vue'
+import ImageAnalysisResultCard from './ImageAnalysisResultCard.vue'
+import VtonTryOnPanel from './VtonTryOnPanel.vue'
 
 // ── Static data ──────────────────────────────────────────────────────────────
+
+const GENDER_DATA = [
+  {
+    id: 'male',
+    code: 'MALE',
+    label: 'Pria',
+    hint: 'Koko dan atasan pria',
+    aria: 'Pilih koleksi pria',
+  },
+  {
+    id: 'female',
+    code: 'FEMALE',
+    label: 'Wanita',
+    hint: 'Gamis, abaya, hijab',
+    aria: 'Pilih koleksi wanita',
+  },
+  {
+    id: 'all',
+    code: 'PREFER_NOT_TO_SAY',
+    label: 'Semua',
+    hint: 'Lihat semua koleksi',
+    aria: 'Pilih semua koleksi',
+  },
+]
 
 const FITZPATRICK_DATA = [
   { num: 1, code: 'I',   name: 'Very Fair',      hex: '#F5DBC4' },
@@ -328,7 +484,57 @@ const UNDERTONE_DATA = [
   { id: 'warm',    code: 'WARM',    label: 'Hijau / Kuning',   cap: 'Warm' },
 ]
 
-const EDUCATION_TOPIC_CODES = new Set(['SKIN_TONE', 'UNDERTONE', 'SEASONAL_COLOR_TYPE'])
+const SEASONAL_EDUCATION_CARD_STYLE = { accent: '#b88f6b', bg: '#fffaf5' }
+
+const EDUCATION_CARD_TOPICS = new Set(['SKIN_TONE', 'UNDERTONE', 'SEASONAL_COLOR_TYPE'])
+
+const EDUCATION_CARD_STYLE = {
+  SKIN_TONE: {
+    Putih: { accent: '#f2c4b6', bg: '#fff8f4' },
+    'Kuning langsat': { accent: '#e1b95f', bg: '#fff9e8' },
+    'Sawo matang': { accent: '#9f6748', bg: '#fff5ed' },
+  },
+  UNDERTONE: {
+    Warm: { accent: '#d88a47', bg: '#fff7ef' },
+    Cool: { accent: '#7f93c8', bg: '#f7f9ff' },
+    Neutral: { accent: '#8c8178', bg: '#faf8f4' },
+  },
+  SEASONAL_COLOR_TYPE: {
+    Spring: SEASONAL_EDUCATION_CARD_STYLE,
+    Summer: SEASONAL_EDUCATION_CARD_STYLE,
+    Autumn: SEASONAL_EDUCATION_CARD_STYLE,
+    Winter: SEASONAL_EDUCATION_CARD_STYLE,
+  },
+}
+
+const EDUCATION_TOPIC_CODES = new Set([
+  'SKIN_TONE',
+  'UNDERTONE',
+  'SEASONAL_COLOR_TYPE',
+  'DETERMINE_SKIN_TONE',
+  'DETERMINE_UNDERTONE',
+])
+
+const RESERVED_QUICK_REPLY_VALUES = new Set([
+  'START_PROFILING',
+  'EDUCATION',
+  'START_RECOMMENDATION',
+  'COLORS_TO_AVOID',
+  'FEEDBACK',
+  'FILTER_PRICE_ASC',
+  'FILTER_RATING_DESC',
+  'FILTER_POPULARITY_DESC',
+  'CONFIRM',
+  'CHANGE_GENDER',
+  'CHANGE_SKIN_TONE',
+  'CHANGE_UNDERTONE',
+  'INPUT_METHOD_IMAGE',
+  'INPUT_METHOD_MANUAL',
+  'IMAGE_CONFIRM',
+  'IMAGE_ADJUST',
+  'IMAGE_RETAKE',
+  'BACK_TO_RECOMMENDATION',
+])
 
 const SEASONS_INFO = {
   SPRING: { tagline: 'Warm · Light · Bright', desc: 'warm, cerah, dan segar',       accent: '#F4A77F' },
@@ -349,10 +555,20 @@ const conversationState = ref(null)
 const composer = ref('')
 const feedbackRating = ref(0)
 const feedbackComment = ref('')
+const selectedGender = ref(null)
 const selectedSkinTone = ref(null)
 const selectedUndertone = ref(null)
 const changingTarget = ref(null)
 const messagesEl = ref(null)
+const savedMessagesScrollTop = ref(0)
+const restoreMessagesToBottom = ref(false)
+const router = useRouter()
+
+// ── Image mode state (hanya di memori sesi — foto tidak disimpan permanen) ──
+const faceCropUrl = ref(null)
+const capturedImageUrl = ref(null)
+const backgroundPresets = ref([])
+const lastRecommendationItems = ref([])
 
 // ── Computed ──────────────────────────────────────────────────────────────────
 
@@ -389,6 +605,128 @@ function formatBubble(text) {
   return String(text).replace(/\n/g, '<br/>')
 }
 
+function trimLines(lines) {
+  const out = [...lines]
+  while (out.length && !out[0].trim()) out.shift()
+  while (out.length && !out[out.length - 1].trim()) out.pop()
+  return out
+}
+
+function linesToText(lines) {
+  return trimLines(lines).join('\n')
+}
+
+function splitStepOutro(step) {
+  const parts = step.body.split(/\n\s*\n(?=Setelah tahu )/)
+  if (parts.length < 2) return { step, outro: '' }
+  return {
+    step: { ...step, body: parts[0].trim() },
+    outro: parts.slice(1).join('\n\n').trim(),
+  }
+}
+
+function finalizeEducationStep(step) {
+  return {
+    number: step.number,
+    title: step.title,
+    body: linesToText(step.bodyLines),
+  }
+}
+
+function finalizeEducationCard(card, topicCode) {
+  const style = EDUCATION_CARD_STYLE[topicCode]?.[card.title] || {}
+  return {
+    title: card.title,
+    body: linesToText(card.bodyLines),
+    accent: style.accent || '#c97b5c',
+    bg: style.bg || '#fffaf5',
+    showSwatch: topicCode !== 'SEASONAL_COLOR_TYPE',
+  }
+}
+
+function parseEducationCards(lines, topicCode) {
+  if (!EDUCATION_CARD_TOPICS.has(topicCode)) {
+    return { intro: '', cards: [] }
+  }
+
+  const introLines = []
+  const cards = []
+  let current = null
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+    const match = line.match(/^(?:[-*]|\u2022|\u00e2\u20ac\u00a2)\s*(.+?):\s*(.*)$/)
+
+    if (match) {
+      if (current) cards.push(finalizeEducationCard(current, topicCode))
+      current = {
+        title: match[1].trim(),
+        bodyLines: match[2] ? [match[2].trim()] : [],
+      }
+    } else if (current) {
+      current.bodyLines.push(rawLine)
+    } else {
+      introLines.push(rawLine)
+    }
+  }
+
+  if (current) cards.push(finalizeEducationCard(current, topicCode))
+
+  return {
+    intro: cards.length ? linesToText(introLines) : '',
+    cards,
+  }
+}
+
+function buildEducationContent(data) {
+  const content = data.content || ''
+  const lines = String(content).split(/\r?\n/)
+  const topicCode = data.topic_code || ''
+  const introLines = []
+  const steps = []
+  let current = null
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+    const match = line.match(/^(\d+)\.\s+(.+?)\.?$/)
+    if (match) {
+      if (current) steps.push(finalizeEducationStep(current))
+      current = {
+        number: match[1],
+        title: match[2].replace(/\.$/, ''),
+        bodyLines: [],
+      }
+    } else if (current) {
+      current.bodyLines.push(rawLine)
+    } else {
+      introLines.push(rawLine)
+    }
+  }
+
+  if (current) steps.push(finalizeEducationStep(current))
+
+  let outro = ''
+  if (steps.length) {
+    const last = splitStepOutro(steps[steps.length - 1])
+    steps[steps.length - 1] = last.step
+    outro = last.outro
+  }
+
+  const cardContent = steps.length
+    ? { intro: '', cards: [] }
+    : parseEducationCards(lines, topicCode)
+
+  return {
+    title: data.title,
+    topicCode,
+    content,
+    intro: steps.length ? linesToText(introLines) : cardContent.intro,
+    steps,
+    cards: cardContent.cards,
+    outro,
+  }
+}
+
 function thumbBg(product) {
   if (product.image_url) {
     const imageUrl = String(product.image_url)
@@ -402,50 +740,137 @@ function thumbBg(product) {
   return 'linear-gradient(160deg, #F2C9B4, #C97B5C)'
 }
 
-function scrollToBottom() {
+function goToProductDetail(product) {
+  const id = product?.product_id
+  if (!id) return
+  rememberMessagesScroll()
+  restoreMessagesToBottom.value = true
+  router.push({ name: 'ProductDetail', params: { id } }).finally(() => close())
+}
+
+function rememberMessagesScroll() {
+  if (messagesEl.value) savedMessagesScrollTop.value = messagesEl.value.scrollTop
+}
+
+function setMessagesScrollTop(scrollTop, behavior = 'auto') {
+  const container = messagesEl.value
+  if (!container) return
+
+  const maxScrollTop = Math.max(container.scrollHeight - container.clientHeight, 0)
+  const nextScrollTop = Math.max(0, Math.min(scrollTop, maxScrollTop))
+
+  if (typeof container.scrollTo === 'function') {
+    container.scrollTo({ top: nextScrollTop, behavior })
+  } else {
+    container.scrollTop = nextScrollTop
+  }
+
+  savedMessagesScrollTop.value = nextScrollTop
+}
+
+function restoreMessagesScroll() {
   nextTick(() => {
-    if (messagesEl.value) messagesEl.value.scrollTop = messagesEl.value.scrollHeight
+    if (!messagesEl.value) return
+    const maxScrollTop = Math.max(messagesEl.value.scrollHeight - messagesEl.value.clientHeight, 0)
+    const nextScrollTop = restoreMessagesToBottom.value
+      ? maxScrollTop
+      : savedMessagesScrollTop.value
+
+    setMessagesScrollTop(nextScrollTop)
+    restoreMessagesToBottom.value = false
   })
 }
 
-function pushUser(text) {
-  messages.value.push({ role: 'user', text })
-  scrollToBottom()
+function scrollToBottom() {
+  nextTick(() => {
+    if (messagesEl.value) setMessagesScrollTop(messagesEl.value.scrollHeight)
+  })
 }
 
-function pushBot(payload) {
+function scrollToMessage(index) {
+  nextTick(() => {
+    const container = messagesEl.value
+    if (!container || !Number.isInteger(index)) return
+
+    const row = container.querySelector(`[data-message-index="${index}"]`)
+    if (!row) return
+
+    const containerRect = container.getBoundingClientRect()
+    const rowRect = row.getBoundingClientRect()
+    const targetTop = container.scrollTop + rowRect.top - containerRect.top - 10
+    setMessagesScrollTop(targetTop, 'smooth')
+  })
+}
+
+function pushUser(text, options = {}) {
+  const index = messages.value.length
+  messages.value.push({ role: 'user', text })
+  if (options.scroll !== false) scrollToBottom()
+  return index
+}
+
+function pushBot(payload, options = {}) {
+  const index = messages.value.length
   messages.value.push({ role: 'bot', ...payload })
-  scrollToBottom()
+  if (options.scroll !== false) scrollToBottom()
+  return index
+}
+
+function botKindForState(data) {
+  if (data.summary) return 'summary'
+  if (data.conversation_state === 'WAITING_GENDER') return 'gender'
+  if (data.conversation_state === 'WAITING_SKIN_TONE') return 'fitz'
+  if (data.conversation_state === 'WAITING_UNDERTONE') return 'undertone'
+  if (data.conversation_state === 'WAITING_IMAGE_CAPTURE') return 'camera'
+  return null
 }
 
 // ── Session control ───────────────────────────────────────────────────────────
 
 function toggleOpen() {
-  isOpen.value = !isOpen.value
-  if (isOpen.value && !sessionId.value) startConversation()
+  if (isOpen.value) {
+    close()
+    return
+  }
+
+  isOpen.value = true
+  if (!sessionId.value) {
+    startConversation()
+  } else {
+    restoreMessagesScroll()
+  }
 }
 
-function close() { isOpen.value = false }
+function close() {
+  rememberMessagesScroll()
+  isOpen.value = false
+}
 
 async function resetSession() {
   messages.value = []
   sessionId.value = null
   conversationState.value = null
+  selectedGender.value = null
   selectedSkinTone.value = null
   selectedUndertone.value = null
   changingTarget.value = null
   feedbackRating.value = 0
   feedbackComment.value = ''
+  clearImageSessionData()
   await startConversation()
 }
 
 async function startConversation() {
   loading.value = true
   try {
+    selectedGender.value = null
+    selectedSkinTone.value = null
+    selectedUndertone.value = null
+    clearImageSessionData()
     const data = await chatbotApi.start()
     sessionId.value = data.session_id
     conversationState.value = data.conversation_state
-    pushBot({ text: data.message, kind: 'fitz' })
+    pushBot({ text: data.message, kind: 'gender' })
   } catch {
     pushBot({ text: 'Tidak bisa terhubung ke server Seera. Pastikan backend berjalan di http://localhost:8000.' })
   } finally {
@@ -459,11 +884,13 @@ async function restartProfiling() {
     const data = await chatbotApi.start()
     sessionId.value = data.session_id
     conversationState.value = data.conversation_state
+    selectedGender.value = null
     selectedSkinTone.value = null
     selectedUndertone.value = null
     feedbackRating.value = 0
     feedbackComment.value = ''
-    pushBot({ text: data.message, kind: 'fitz' })
+    clearImageSessionData()
+    pushBot({ text: data.message, kind: 'gender' })
   } catch {
     pushBot({ text: 'Gagal memulai ulang sesi.' })
   } finally {
@@ -472,6 +899,36 @@ async function restartProfiling() {
 }
 
 // ── Profiling ─────────────────────────────────────────────────────────────────
+
+async function pickGender(g) {
+  if (loading.value) return
+  selectedGender.value = g.id
+  pushUser(g.label)
+  await sendGender(g.code)
+}
+
+async function sendGender(code) {
+  loading.value = true
+  try {
+    const data = await chatbotApi.setGender(sessionId.value, code)
+    conversationState.value = data.conversation_state
+    const kind = botKindForState(data)
+    changingTarget.value = null
+    pushBot({
+      text: data.message,
+      quick_replies: data.quick_replies,
+      kind,
+      summary: data.summary,
+    })
+  } catch (err) {
+    pushBot({
+      text: err.body?.detail?.message || 'Pilihan koleksi tidak valid.',
+      kind: 'gender',
+    })
+  } finally {
+    loading.value = false
+  }
+}
 
 async function pickSkinTone(f) {
   if (loading.value) return
@@ -527,15 +984,27 @@ async function sendUndertone(code) {
 
 async function doConfirm(isConfirmed, changeTarget = null) {
   loading.value = true
+  let productsMessageIndex = null
   try {
     const data = await chatbotApi.confirm(sessionId.value, { isConfirmed, changeTarget, topN: 5 })
     conversationState.value = data.conversation_state
     if (isConfirmed && data.seasonal_result) {
-      pushBot({ text: data.message, kind: 'seasonal', seasonal: data.seasonal_result })
-      pushBot({ kind: 'products', items: data.recommendation.items, quick_replies: data.quick_replies })
+      lastRecommendationItems.value = data.recommendation.items
+      pushBot(
+        { text: data.message, kind: 'seasonal', seasonal: data.seasonal_result },
+        { scroll: false },
+      )
+      productsMessageIndex = pushBot(
+        { kind: 'products', items: data.recommendation.items, quick_replies: data.quick_replies },
+        { scroll: false },
+      )
     } else {
       const state = data.conversation_state
-      if (state === 'WAITING_SKIN_TONE' || state === 'WAITING_CHANGE_SELECTION') {
+      if (state === 'WAITING_GENDER') {
+        selectedGender.value = null
+        changingTarget.value = changeTarget
+        pushBot({ text: data.message, kind: 'gender' })
+      } else if (state === 'WAITING_SKIN_TONE' || state === 'WAITING_CHANGE_SELECTION') {
         selectedSkinTone.value = null
         if (changeTarget !== 'SKIN_TONE') selectedUndertone.value = null
         changingTarget.value = changeTarget
@@ -552,6 +1021,7 @@ async function doConfirm(isConfirmed, changeTarget = null) {
     pushBot({ text: 'Terjadi kesalahan saat memproses rekomendasi.' })
   } finally {
     loading.value = false
+    if (Number.isInteger(productsMessageIndex)) scrollToMessage(productsMessageIndex)
   }
 }
 
@@ -561,6 +1031,7 @@ async function applyFilter(criteria) {
   loading.value = true
   try {
     const data = await chatbotApi.filter(sessionId.value, criteria)
+    lastRecommendationItems.value = data.items
     pushBot({ text: data.message, kind: 'products', items: data.items, quick_replies: data.quick_replies })
   } catch {
     pushBot({ text: 'Filter tidak dapat diterapkan.' })
@@ -583,31 +1054,48 @@ async function requestColorsToAvoid() {
 
 // ── Education ─────────────────────────────────────────────────────────────────
 
-async function openEducationTopics() {
+async function openEducationTopics(promptIndex = null) {
   loading.value = true
+  const shouldAnchorPrompt = Number.isInteger(promptIndex)
   try {
     const data = await chatbotApi.listEducationTopics(sessionId.value)
+    data.topics.forEach((t) => EDUCATION_TOPIC_CODES.add(t.code))
     const quickReplies = data.topics.map((t) => ({ label: t.title, value: t.code }))
     quickReplies.push({ label: 'Mulai rekomendasi', value: 'START_RECOMMENDATION' })
     conversationState.value = 'EDUCATION'
-    pushBot({ text: 'Pilih topik personal color yang ingin Anda pelajari:', quick_replies: quickReplies })
+    pushBot(
+      { text: 'Pilih topik personal color yang ingin Anda pelajari:', quick_replies: quickReplies },
+      { scroll: !shouldAnchorPrompt },
+    )
   } catch {
-    pushBot({ text: 'Gagal memuat daftar edukasi.' })
+    pushBot({ text: 'Gagal memuat daftar edukasi.' }, { scroll: !shouldAnchorPrompt })
   } finally {
     loading.value = false
+    if (shouldAnchorPrompt) scrollToMessage(promptIndex)
   }
 }
 
-async function openEducationContent(code) {
+async function openEducationContent(code, promptIndex = null) {
   loading.value = true
+  const shouldAnchorPrompt = Number.isInteger(promptIndex)
   try {
     const data = await chatbotApi.getEducationTopic(code, sessionId.value)
     conversationState.value = 'EDUCATION'
-    pushBot({ text: `<strong>${data.title}</strong><br/>${data.content}`, quick_replies: data.quick_replies })
+    data.quick_replies?.forEach((qr) => {
+      if (qr.value && !RESERVED_QUICK_REPLY_VALUES.has(qr.value)) {
+        EDUCATION_TOPIC_CODES.add(qr.value)
+      }
+    })
+    pushBot({
+      kind: 'education',
+      education: buildEducationContent(data),
+      quick_replies: data.quick_replies,
+    }, { scroll: !shouldAnchorPrompt })
   } catch (err) {
-    pushBot({ text: err.body?.detail?.message || 'Topik edukasi tidak tersedia.' })
+    pushBot({ text: err.body?.detail?.message || 'Topik edukasi tidak tersedia.' }, { scroll: !shouldAnchorPrompt })
   } finally {
     loading.value = false
+    if (shouldAnchorPrompt) scrollToMessage(promptIndex)
   }
 }
 
@@ -637,36 +1125,240 @@ async function submitFeedback(isSkipped) {
   }
 }
 
+// ── Image mode: capture, analisis, konfirmasi, visual matching ───────────────
+
+function clearImageSessionData() {
+  faceCropUrl.value = null
+  if (capturedImageUrl.value) {
+    URL.revokeObjectURL(capturedImageUrl.value)
+    capturedImageUrl.value = null
+  }
+  lastRecommendationItems.value = []
+}
+
+async function startImageMode() {
+  loading.value = true
+  try {
+    const data = await chatbotApi.startImageMode(sessionId.value)
+    conversationState.value = data.conversation_state
+    pushBot({ text: data.message, kind: 'camera' })
+  } catch (err) {
+    pushBot({ text: err.body?.detail?.message || 'Gagal membuka mode foto.' })
+  } finally {
+    loading.value = false
+  }
+}
+
+async function chooseManualInput(announce = true) {
+  if (announce) pushUser('Pilih manual')
+  loading.value = true
+  try {
+    const data = await chatbotApi.setInputMethod(sessionId.value, 'MANUAL')
+    conversationState.value = data.conversation_state
+    selectedSkinTone.value = null
+    pushBot({ text: data.message, kind: 'fitz' })
+  } catch (err) {
+    pushBot({ text: err.body?.detail?.message || 'Gagal beralih ke input manual.' })
+  } finally {
+    loading.value = false
+  }
+}
+
+async function onImageCaptured({ file, sourceType }) {
+  pushUser(sourceType === 'CAMERA' ? '[Foto diambil dari kamera]' : '[Foto diunggah dari galeri]')
+  loading.value = true
+  try {
+    const data = await chatbotApi.analyzeImage(sessionId.value, file, sourceType)
+    conversationState.value = data.conversation_state
+
+    if (!data.requires_confirmation) {
+      // Validasi gagal — tampilkan alasan + panel kamera untuk coba lagi (FR-IMG-15)
+      pushBot({ text: data.message, kind: 'camera' })
+      return
+    }
+
+    if (data.face_crop?.data_url) {
+      // Crop kepala hasil pemrosesan server (tersegmentasi) untuk kartu hasil deteksi
+      faceCropUrl.value = data.face_crop.data_url
+    } else {
+      await buildFaceCrop(file, data.face_bbox, data.image_size)
+    }
+    pushBot({
+      text: data.message,
+      kind: 'image-result',
+      imageResult: {
+        skin_tone: data.skin_tone,
+        undertone: data.undertone,
+        sample_hex: data.sample_hex,
+        low_confidence: data.low_confidence
+      }
+    })
+  } catch (err) {
+    pushBot({ text: err.body?.detail?.message || 'Gagal menganalisis foto. Silakan coba lagi.', kind: 'camera' })
+  } finally {
+    loading.value = false
+  }
+}
+
+// Crop wajah deterministik untuk virtual try-on: wajah selalu menempati 70%
+// lebar crop dengan pusat di 44% tinggi (portrait 1:1.25). Framing yang tetap
+// membuat skala kepala-badan konsisten terhadap anchor foto produk.
+// Crop hanya disimpan di memori sesi (NFR-IMG-02).
+const FACE_CROP_FRACTION = 0.7
+const FACE_CROP_CENTER_Y = 0.44
+const FACE_CROP_RATIO = 1.25
+
+function buildFaceCrop(file, bbox, imageSize) {
+  return new Promise((resolve) => {
+    if (!bbox || !imageSize) { resolve(); return }
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
+    img.onload = () => {
+      try {
+        const faceCx = bbox.x + bbox.width / 2
+        const faceCy = bbox.y + bbox.height / 2
+        const cropW = bbox.width / FACE_CROP_FRACTION
+        const cropH = cropW * FACE_CROP_RATIO
+        const sx = faceCx - cropW / 2
+        const sy = faceCy - cropH * FACE_CROP_CENTER_Y
+        const canvas = document.createElement('canvas')
+        canvas.width = 256
+        canvas.height = 320
+        // PNG agar area di luar foto sumber tetap transparan (tertutup feather mask)
+        canvas.getContext('2d').drawImage(img, sx, sy, cropW, cropH, 0, 0, 256, 320)
+        faceCropUrl.value = canvas.toDataURL('image/png')
+      } catch { /* crop gagal — preview pakai fallback */ }
+      URL.revokeObjectURL(objectUrl)
+      resolve()
+    }
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve() }
+    img.src = objectUrl
+  })
+}
+
+async function onImageResultConfirm({ correctedSkinTone, correctedUndertone }) {
+  pushUser(correctedSkinTone || correctedUndertone ? 'Gunakan hasil yang sudah saya ubah' : 'Lanjutkan')
+  loading.value = true
+  try {
+    const data = await chatbotApi.confirmImageAnalysis(sessionId.value, {
+      isConfirmed: true,
+      correctedSkinTone,
+      correctedUndertone
+    })
+    conversationState.value = data.conversation_state
+    pushBot({ text: data.message, quick_replies: data.quick_replies, kind: 'summary', summary: data.summary })
+  } catch (err) {
+    pushBot({ text: err.body?.detail?.message || 'Gagal mengonfirmasi hasil deteksi.' })
+  } finally {
+    loading.value = false
+  }
+}
+
+async function onImageRetake() {
+  pushUser('Ambil ulang foto')
+  loading.value = true
+  try {
+    const data = await chatbotApi.confirmImageAnalysis(sessionId.value, { isConfirmed: false })
+    conversationState.value = data.conversation_state
+    faceCropUrl.value = null
+    pushBot({ text: data.message, kind: 'camera' })
+  } catch (err) {
+    pushBot({ text: err.body?.detail?.message || 'Gagal memulai pengambilan ulang foto.' })
+  } finally {
+    loading.value = false
+  }
+}
+
+async function ensureBackgroundsLoaded() {
+  if (backgroundPresets.value.length) return
+  try {
+    const data = await chatbotApi.listBackgrounds()
+    backgroundPresets.value = data.backgrounds || []
+  } catch {
+    backgroundPresets.value = []
+  }
+}
+
+async function openVtonPanel(product, items) {
+  pushUser(`Coba virtual try-on "${product.product_name}"`)
+  loading.value = true
+  try {
+    await ensureBackgroundsLoaded()
+    pushBot({
+      kind: 'vton',
+      vton: {
+        product,
+        // Produk lain yang masih bisa di-try-on (ready/experimental/limited)
+        products: (items || lastRecommendationItems.value).filter((p) => p.vton_supported)
+      }
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+function showRecommendationAgain() {
+  if (!lastRecommendationItems.value.length) return
+  pushBot({
+    kind: 'products',
+    items: lastRecommendationItems.value,
+    quick_replies: [
+      { label: 'Urutkan harga termurah', value: 'FILTER_PRICE_ASC' },
+      { label: 'Urutkan rating tertinggi', value: 'FILTER_RATING_DESC' },
+      { label: 'Warna yang dihindari', value: 'COLORS_TO_AVOID' },
+      { label: 'Beri umpan balik', value: 'FEEDBACK' }
+    ]
+  })
+}
+
 // ── Quick reply dispatcher ────────────────────────────────────────────────────
 
 async function handleQuickReply(qr) {
   if (!qr) return
   const value = qr.value
   const label = qr.label
-  pushUser(label)
+  const shouldAnchorEducationPrompt =
+    value === 'EDUCATION' ||
+    EDUCATION_TOPIC_CODES.has(value) ||
+    (conversationState.value === 'EDUCATION' && !RESERVED_QUICK_REPLY_VALUES.has(value))
+  const promptIndex = pushUser(label, { scroll: !shouldAnchorEducationPrompt })
 
   if (value === 'START_PROFILING') return startConversation()
-  if (value === 'EDUCATION') return openEducationTopics()
+  if (value === 'EDUCATION') return openEducationTopics(promptIndex)
   if (value === 'START_RECOMMENDATION') {
-    conversationState.value = 'WAITING_SKIN_TONE'
+    conversationState.value = 'WAITING_GENDER'
     return restartProfiling()
   }
-  if (EDUCATION_TOPIC_CODES.has(value)) return openEducationContent(value)
+  if (EDUCATION_TOPIC_CODES.has(value) || (conversationState.value === 'EDUCATION' && !RESERVED_QUICK_REPLY_VALUES.has(value))) {
+    return openEducationContent(value, promptIndex)
+  }
   if (value === 'COLORS_TO_AVOID') return requestColorsToAvoid()
   if (value === 'FEEDBACK') return openFeedback()
   if (value === 'FILTER_PRICE_ASC') return applyFilter('PRICE_ASC')
   if (value === 'FILTER_RATING_DESC') return applyFilter('RATING_DESC')
   if (value === 'FILTER_POPULARITY_DESC') return applyFilter('POPULARITY_DESC')
+  if (value === 'INPUT_METHOD_IMAGE') return startImageMode()
+  if (value === 'INPUT_METHOD_MANUAL') return chooseManualInput(false)
+  if (value === 'IMAGE_RETAKE') {
+    if (conversationState.value === 'WAITING_IMAGE_RESULT_CONFIRMATION') return onImageRetake()
+    return startImageMode()
+  }
+  if (value === 'BACK_TO_RECOMMENDATION') return showRecommendationAgain()
 
   const state = conversationState.value
-  if (state === 'WAITING_SKIN_TONE' || state === 'WAITING_CHANGE_SELECTION') {
-    if (value === 'CHANGE_SKIN_TONE') { conversationState.value = 'WAITING_SKIN_TONE'; return restartProfiling() }
+  if (state === 'WAITING_GENDER') return sendGender(value)
+  if (state === 'WAITING_CHANGE_SELECTION') {
+    if (value === 'CHANGE_GENDER') return doConfirm(false, 'GENDER')
+    if (value === 'CHANGE_SKIN_TONE') return doConfirm(false, 'SKIN_TONE')
     if (value === 'CHANGE_UNDERTONE') return doConfirm(false, 'UNDERTONE')
+  }
+  if (state === 'WAITING_SKIN_TONE') {
     return sendSkinTone(value)
   }
   if (state === 'WAITING_UNDERTONE') return sendUndertone(value)
   if (state === 'WAITING_CONFIRMATION') {
     if (value === 'CONFIRM') return doConfirm(true)
+    if (value === 'CHANGE_GENDER') return doConfirm(false, 'GENDER')
     if (value === 'CHANGE_SKIN_TONE') return doConfirm(false, 'SKIN_TONE')
     if (value === 'CHANGE_UNDERTONE') return doConfirm(false, 'UNDERTONE')
   }
@@ -687,10 +1379,17 @@ async function sendFreeText() {
     const data = await chatbotApi.freeText(sessionId.value, text)
     if (data.conversation_state) conversationState.value = data.conversation_state
     if (data.seasonal_result) {
+      lastRecommendationItems.value = data.recommendation.items
       pushBot({ text: data.message, kind: 'seasonal', seasonal: data.seasonal_result })
       pushBot({ kind: 'products', items: data.recommendation.items, quick_replies: data.quick_replies })
     } else if (data.message) {
-      pushBot({ text: data.message, quick_replies: data.quick_replies })
+      const kind = botKindForState(data)
+      pushBot({
+        text: data.message,
+        quick_replies: data.quick_replies,
+        kind,
+        summary: data.summary,
+      })
     }
   } catch (err) {
     pushBot({ text: err.body?.detail?.message || 'Maaf, saya belum memahami pesan tersebut.' })
@@ -842,6 +1541,125 @@ async function sendFreeText() {
   background: var(--seera-ink); color: var(--seera-bg);
   border-color: var(--seera-ink); border-radius: 16px 16px 4px 16px;
 }
+.seera-chatbot__bubble--education {
+  width: 100%;
+  padding: 12px 12px 13px;
+  background: #fffdf9;
+  border-color: var(--seera-line-2);
+  box-shadow: 0 1px 0 rgba(31, 27, 22, 0.03);
+}
+.seera-education__eyebrow {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--seera-clay-deep);
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 3px;
+}
+.seera-education__title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 15.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+.seera-education__text,
+.seera-education__note,
+.seera-education__step-body {
+  font-size: 12.5px;
+  line-height: 1.48;
+  color: var(--seera-ink-2);
+}
+.seera-education__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.seera-education__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.seera-education__card {
+  min-height: 104px;
+  background: var(--education-card-bg, var(--seera-bg-elev));
+  border: 1px solid var(--seera-line-2);
+  border-top: 3px solid var(--education-card-accent, var(--seera-clay));
+  border-radius: 12px;
+  padding: 10px 10px 11px;
+  box-shadow: 0 1px 2px rgba(31, 27, 22, 0.04);
+}
+.seera-education__card-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  margin-bottom: 7px;
+}
+.seera-education__card-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: var(--education-card-accent, var(--seera-clay));
+  border: 1px solid rgba(31, 27, 22, 0.12);
+  flex: 0 0 auto;
+}
+.seera-education__card-title {
+  min-width: 0;
+  color: var(--seera-ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.seera-education__card-body {
+  color: var(--seera-ink-2);
+  font-size: 11.5px;
+  line-height: 1.42;
+}
+.seera-education__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 74px;
+  background: linear-gradient(180deg, #fffaf5 0%, var(--seera-bg-elev) 100%);
+  border: 1px solid #e5d6c5;
+  border-left: 3px solid rgba(201, 123, 92, 0.55);
+  border-radius: 12px;
+  padding: 11px 11px 11px 10px;
+  box-shadow: 0 1px 2px rgba(31, 27, 22, 0.04);
+}
+.seera-education__step-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #f4dfd3;
+  border: 1px solid rgba(201, 123, 92, 0.34);
+  color: var(--seera-clay-deep);
+  display: grid;
+  place-items: center;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  flex: 0 0 auto;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+.seera-education__step-copy { min-width: 0; }
+.seera-education__step-title {
+  font-weight: 700;
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--seera-ink);
+  margin-bottom: 5px;
+}
+.seera-education__note {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--seera-line-2);
+}
 
 /* ── Blocks (shared) ───────────────────────────────────────────────────────── */
 
@@ -914,6 +1732,40 @@ async function sendFreeText() {
   text-align: center; line-height: 1.25;
   font-family: 'JetBrains Mono', monospace;
   display: flex; flex-direction: column; align-items: center;
+}
+
+/* ── Gender / collection preference block ─────────────────────────────────── */
+
+.seera-gender {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px; margin-top: 10px;
+}
+.seera-gender__card {
+  min-height: 78px;
+  background: var(--seera-bg-elev);
+  border: 1px solid var(--seera-line-2);
+  border-radius: 12px;
+  padding: 12px 8px;
+  display: flex; flex-direction: column; justify-content: center; gap: 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.seera-gender__card:hover:not(.seera-gender__card--disabled) {
+  border-color: var(--seera-ink-3);
+  transform: translateY(-2px);
+}
+.seera-gender__card--selected {
+  border-color: var(--seera-ink);
+  box-shadow: 0 0 0 3px rgba(31, 27, 22, 0.08);
+}
+.seera-gender__card--disabled { cursor: default; }
+.seera-gender__cap {
+  font-size: 12px; font-weight: 700; color: var(--seera-ink);
+}
+.seera-gender__hint {
+  font-size: 10px; color: var(--seera-ink-3); line-height: 1.25;
 }
 
 /* ── Undertone block ───────────────────────────────────────────────────────── */
@@ -993,13 +1845,38 @@ async function sendFreeText() {
 .seera-chatbot__product {
   background: var(--seera-bg-elev); border: 1px solid var(--seera-line);
   border-radius: 12px; overflow: hidden;
+  transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
 }
-.seera-chatbot__product-thumb { aspect-ratio: 4 / 5; position: relative; }
+.seera-chatbot__product:hover,
+.seera-chatbot__product:focus-within {
+  border-color: var(--seera-line-2);
+  box-shadow: 0 8px 18px rgba(31, 27, 22, 0.1);
+  transform: translateY(-2px);
+}
+.seera-chatbot__product-thumb {
+  aspect-ratio: 4 / 5;
+  position: relative;
+  overflow: hidden;
+}
+.seera-chatbot__product-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(31, 27, 22, 0.02) 30%, rgba(31, 27, 22, 0.5) 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.seera-chatbot__product:hover .seera-chatbot__product-thumb::after,
+.seera-chatbot__product:focus-within .seera-chatbot__product-thumb::after {
+  opacity: 1;
+}
 .seera-chatbot__product-score {
   position: absolute; top: 6px; right: 6px;
   background: rgba(31, 27, 22, 0.92); color: var(--seera-bg);
   font-family: 'JetBrains Mono', monospace; font-size: 10px;
   padding: 3px 6px; border-radius: 6px;
+  z-index: 2;
 }
 .seera-chatbot__product-score em {
   font-family: 'Fraunces', serif; font-style: normal;
@@ -1010,6 +1887,42 @@ async function sendFreeText() {
   background: rgba(255, 255, 255, 0.92); color: var(--seera-ink);
   font-family: 'JetBrains Mono', monospace; font-size: 10px;
   padding: 3px 6px; border-radius: 6px;
+  z-index: 2;
+}
+.seera-chatbot__product-action {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 999px;
+  background: rgba(255, 253, 249, 0.96);
+  color: var(--seera-ink);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 8px 10px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.18s, transform 0.18s, background 0.18s, color 0.18s;
+  z-index: 3;
+}
+.seera-chatbot__product:hover .seera-chatbot__product-action,
+.seera-chatbot__product:focus-within .seera-chatbot__product-action {
+  opacity: 1;
+  transform: translateY(0);
+}
+.seera-chatbot__product-action:hover,
+.seera-chatbot__product-action:focus-visible {
+  background: var(--seera-ink);
+  color: var(--seera-bg);
+  outline: none;
+}
+.seera-chatbot__product-action:focus-visible {
+  box-shadow: 0 0 0 3px rgba(255, 253, 249, 0.72);
 }
 .seera-chatbot__product-info { padding: 8px 10px 10px; }
 .seera-chatbot__product-title { font-size: 11.5px; font-weight: 500; line-height: 1.3; }
@@ -1078,6 +1991,17 @@ async function sendFreeText() {
 }
 .seera-chatbot__qr--primary { background: var(--seera-clay); color: #fff; border-color: var(--seera-clay); }
 .seera-chatbot__qr--primary:hover { background: var(--seera-clay-deep); border-color: var(--seera-clay-deep); }
+.seera-chatbot__qr--try-face { margin-top: 6px; align-self: flex-start; font-size: 11px; padding: 5px 11px; }
+.seera-chatbot__vton-unavailable {
+  display: inline-block;
+  margin-top: 6px;
+  align-self: flex-start;
+  font-size: 10px;
+  color: var(--seera-ink-3);
+  border: 1px dashed var(--seera-line-2);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
 
 /* ── Typing indicator ──────────────────────────────────────────────────────── */
 
@@ -1127,6 +2051,17 @@ async function sendFreeText() {
 .seera-fade-leave-to { opacity: 0; transform: translateY(8px); }
 .seera-fade-enter-active,
 .seera-fade-leave-active { transition: opacity 0.2s, transform 0.2s; }
+
+@media (hover: none) {
+  .seera-chatbot__product-thumb::after {
+    opacity: 1;
+    background: linear-gradient(180deg, rgba(31, 27, 22, 0) 45%, rgba(31, 27, 22, 0.42) 100%);
+  }
+  .seera-chatbot__product-action {
+    opacity: 1;
+    transform: none;
+  }
+}
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 

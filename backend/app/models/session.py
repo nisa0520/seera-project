@@ -12,7 +12,8 @@ class Session(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     session_status: Mapped[str] = mapped_column(String(30), default="ACTIVE", nullable=False)
-    conversation_state: Mapped[str] = mapped_column(String(50), default="WAITING_SKIN_TONE", nullable=False)
+    conversation_state: Mapped[str] = mapped_column(String(50), default="WAITING_GENDER", nullable=False)
+    gender_snapshot: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     skintone_snapshot: Mapped[Optional[float]] = mapped_column(Numeric(4, 2), nullable=True)
     undertone_snapshot: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     y1_continuous: Mapped[Optional[float]] = mapped_column(Numeric(8, 6), nullable=True)
@@ -29,8 +30,13 @@ class Session(Base):
             name="ck_session_status",
         ),
         CheckConstraint(
-            "conversation_state IN ('WAITING_SKIN_TONE','WAITING_UNDERTONE','WAITING_CONFIRMATION','WAITING_CHANGE_SELECTION','SHOWING_RECOMMENDATION','EDUCATION')",
+            "conversation_state IN ('WAITING_GENDER','WAITING_SKIN_TONE','WAITING_UNDERTONE','WAITING_CONFIRMATION','WAITING_CHANGE_SELECTION','SHOWING_RECOMMENDATION','EDUCATION',"
+            "'WAITING_INPUT_METHOD','WAITING_IMAGE_CAPTURE','PROCESSING_IMAGE_ANALYSIS','WAITING_IMAGE_RESULT_CONFIRMATION','SHOWING_VISUAL_RECOMMENDATION','WAITING_BACKGROUND_SELECTION')",
             name="ck_conversation_state",
+        ),
+        CheckConstraint(
+            "gender_snapshot IS NULL OR gender_snapshot IN ('MALE','FEMALE','PREFER_NOT_TO_SAY')",
+            name="ck_session_gender_snapshot",
         ),
         Index("idx_sessions_user_created", "user_id", "created_at"),
         Index("idx_sessions_state", "session_status", "conversation_state"),
@@ -46,4 +52,10 @@ class Session(Base):
     )
     feedback: Mapped[Optional["Feedback"]] = relationship(
         "Feedback", back_populates="session", uselist=False, cascade="all,delete-orphan"
+    )
+    image_analyses: Mapped[List["ImageAnalysisSession"]] = relationship(
+        "ImageAnalysisSession", back_populates="session", cascade="all,delete-orphan"
+    )
+    visual_matches: Mapped[List["VisualMatchSession"]] = relationship(
+        "VisualMatchSession", back_populates="session", cascade="all,delete-orphan"
     )

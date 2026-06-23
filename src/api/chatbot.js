@@ -11,7 +11,12 @@ function fingerprint() {
 }
 
 async function request(path, options = {}) {
-  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) }
+  // FormData: biarkan browser yang menentukan Content-Type (multipart boundary)
+  const isFormData = options.body instanceof FormData
+  const headers = {
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(options.headers || {})
+  }
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers })
   const text = await response.text()
   let payload
@@ -30,10 +35,17 @@ async function request(path, options = {}) {
 }
 
 export const chatbotApi = {
+  apiBase: API_BASE,
   start() {
     return request('/api/v1/conversations/start', {
       method: 'POST',
       body: JSON.stringify({ user_fingerprint: fingerprint() })
+    })
+  },
+  setGender(sessionId, gender) {
+    return request(`/api/v1/conversations/${sessionId}/gender`, {
+      method: 'POST',
+      body: JSON.stringify({ gender })
     })
   },
   setSkinTone(sessionId, skinTone) {
@@ -85,6 +97,89 @@ export const chatbotApi = {
     return request(`/api/v1/conversations/${sessionId}/feedback`, {
       method: 'POST',
       body: JSON.stringify(payload)
+    })
+  },
+  // ── Image-based skin detection & visual matching ──
+  setInputMethod(sessionId, method) {
+    return request(`/api/v1/conversations/${sessionId}/input-method`, {
+      method: 'POST',
+      body: JSON.stringify({ method })
+    })
+  },
+  startImageMode(sessionId) {
+    return request(`/api/v1/conversations/${sessionId}/image-mode`, {
+      method: 'POST'
+    })
+  },
+  analyzeImage(sessionId, file, sourceType = 'UPLOAD') {
+    const form = new FormData()
+    form.append('image_file', file, file.name || 'wajah.jpg')
+    form.append('source_type', sourceType)
+    return request(`/api/v1/conversations/${sessionId}/image-analysis`, {
+      method: 'POST',
+      body: form
+    })
+  },
+  confirmImageAnalysis(sessionId, { isConfirmed, correctedSkinTone = null, correctedUndertone = null }) {
+    return request(`/api/v1/conversations/${sessionId}/image-analysis/confirm`, {
+      method: 'POST',
+      body: JSON.stringify({
+        is_confirmed: isConfirmed,
+        corrected_skin_tone: correctedSkinTone,
+        corrected_undertone: correctedUndertone
+      })
+    })
+  },
+  listBackgrounds() {
+    return request('/api/v1/backgrounds')
+  },
+  createVisualMatch(sessionId, { recommendationId = null, productId, backgroundId = null }) {
+    return request(`/api/v1/conversations/${sessionId}/visual-match`, {
+      method: 'POST',
+      body: JSON.stringify({
+        recommendation_id: recommendationId,
+        product_id: productId,
+        background_id: backgroundId
+      })
+    })
+  },
+  // ── Realistic Virtual Try-On (IDM-VTON, asset-tier aware) ──
+  uploadVtonPersonImage(sessionId, file, sourceType = 'UPLOAD', consentConfirmed = false) {
+    const form = new FormData()
+    form.append('image_file', file, file.name || 'badan.jpg')
+    form.append('source_type', sourceType)
+    form.append('consent_confirmed', consentConfirmed ? 'true' : 'false')
+    return request(`/api/v1/conversations/${sessionId}/vton/person-image`, {
+      method: 'POST',
+      body: form
+    })
+  },
+  createVtonJob(
+    sessionId,
+    { productId, personImageId, backgroundId = null, variantId = null, confirmExperimental = false }
+  ) {
+    return request(`/api/v1/conversations/${sessionId}/vton/jobs`, {
+      method: 'POST',
+      body: JSON.stringify({
+        product_id: productId,
+        person_image_id: personImageId,
+        background_id: backgroundId,
+        variant_id: variantId,
+        confirm_experimental: confirmExperimental
+      })
+    })
+  },
+  vtonEligibility(productId, variantId = null) {
+    const qs = variantId != null ? `?variant_id=${variantId}` : ''
+    return request(`/api/v1/products/${productId}/vton-eligibility${qs}`)
+  },
+  getVtonJob(jobId) {
+    return request(`/api/v1/vton/jobs/${jobId}`)
+  },
+  submitVtonFeedback(jobId, ratings) {
+    return request(`/api/v1/vton/jobs/${jobId}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify(ratings)
     })
   }
 }

@@ -16,6 +16,7 @@ from app.models.product_match_filter import ProductMatchFilter
 from app.services.seasonal_classifier import classify
 from app.services.color_match_service import compute_color_score, LABEL_INDONESIAN, label_for_score
 from app.services.product_ranker import aggregate_product_score, sort_items
+from app.services.vton_eligibility_service import VTONEligibilityService
 from app.core.exceptions import RecommendationNotFoundError
 
 
@@ -48,8 +49,10 @@ class RecommendationService:
 
         return sr
 
-    def _available_products(self) -> list[Product]:
+    def _available_products(self, gender: Optional[str] = None) -> list[Product]:
         stmt = select(Product).where(Product.is_active.is_(True), Product.stock > 0)
+        if gender in {"MALE", "FEMALE"}:
+            stmt = stmt.where(Product.target_gender.in_([gender, "UNISEX"]))
         return list(self.db.execute(stmt).scalars().all())
 
     def generate_recommendation(self, session: Session, seasonal_result: SeasonalResult, top_n: int = 5) -> dict:
@@ -61,7 +64,7 @@ class RecommendationService:
         self.db.add(recommendation)
         self.db.flush()
 
-        products = self._available_products()
+        products = self._available_products(session.gender_snapshot)
         all_match_filters = []
         ranking_rows: list[dict] = []
 
@@ -96,6 +99,7 @@ class RecommendationService:
                 self.db.add(cms)
                 color_scores_payload.append({
                     "product_color_id": pc.id,
+                    "color_id": color.id,
                     "color_name": color.color_name,
                     "hex_code": color.hex_code,
                     "ct": ct,
@@ -145,12 +149,15 @@ class RecommendationService:
                 "rating_snapshot": float(product.rating) if product.rating is not None else None,
                 "stock_snapshot": product.stock,
                 "popularity": product.popularity,
+                "target_gender": product.target_gender,
                 "product_score": float(aggregated["total_roc_score"]),
                 "label": aggregated["label"],
                 "label_indonesian": aggregated["label_indonesian"],
                 "product_match_filter_id": pmf.id,
                 "image_url": product.image_url,
                 "colors": color_scores_payload,
+                # Status realistic try-on untuk kartu produk (PRD CatVTON 16.1)
+                **VTONEligibilityService.status_for_item(product),
             })
 
         # Tie-break: score desc, rating desc, price asc, name asc
@@ -210,6 +217,7 @@ class RecommendationService:
                 )
                 if cms:
                     colors.append({
+                        "color_id": cms.color_id,
                         "color_name": cms.match_color_name,
                         "hex_code": cms.hex_code,
                         "ct": float(cms.ct),
@@ -228,12 +236,14 @@ class RecommendationService:
                 "rating": float(item.rating_snapshot) if item.rating_snapshot is not None else None,
                 "stock": item.stock_snapshot,
                 "popularity": product.popularity,
+                "target_gender": product.target_gender,
                 "image_url": product.image_url,
                 "product_score": float(item.product_score),
                 "label": item.product_rank_label,
                 "label_indonesian": LABEL_INDONESIAN.get(item.product_rank_label or "", ""),
                 "product_match_filter_id": item.product_match_filter_id,
                 "colors": colors,
+                **VTONEligibilityService.status_for_item(product),
             })
         return items_out
 
