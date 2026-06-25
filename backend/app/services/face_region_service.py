@@ -1,8 +1,28 @@
 """Deteksi wajah dan sampling area kulit (FR-IMG-04, FR-IMG-05).
 
-Sampel diambil dari dahi, pipi kiri/kanan, dan dagu — area mata, bibir, alis,
-rambut, dan background dihindari lewat proporsi geometris kotak wajah ditambah
-masking warna kulit pada ruang YCrCb.
+Deteksi wajah:
+  Menggunakan Haar Cascade frontal face (Viola & Jones 2001; Lienhart &
+  Maydt 2002) via OpenCV. Wajah dideteksi pada grayscale yang telah
+  dinormalisasi histogram (equalizeHist) agar lebih robust terhadap
+  variasi pencahayaan.
+
+Sampling area kulit:
+  4 patch geometris relatif terhadap bounding box wajah (dahi, pipi kiri,
+  pipi kanan, dagu) dipilih agar menghindari area mata, alis, bibir, dan
+  tepi rambut. Setiap patch difilter dengan skin mask YCrCb sebelum
+  digabungkan.
+
+Skin mask YCrCb:
+  Chai & Ngan (1999) menetapkan rentang Cr 133–173 dan Cb 77–127 pada
+  ruang YCrCb sebagai area warna kulit yang konsisten lintas etnis.
+  YCrCb dipilih karena memisahkan luminansi (Y) dari krominansi (Cr, Cb)
+  sehingga mask kulit lebih stabil terhadap perubahan kecerahan cahaya
+  dibandingkan threshold langsung pada RGB.
+
+Warna representatif:
+  Median RGB dari seluruh piksel kulit yang lolos mask — median digunakan
+  untuk ketahanan terhadap specular highlight dan piksel rambut liar yang
+  menyusup ke patch.
 """
 from typing import Optional
 
@@ -30,7 +50,7 @@ SAMPLE_PATCHES = (
     ("chin", 0.40, 0.78, 0.20, 0.12),
 )
 
-# Batas klasik skin mask pada YCrCb (Chai & Ngan).
+# Rentang skin mask YCrCb dari Chai & Ngan (1999): Cr 133–173, Cb 77–127.
 SKIN_CR_RANGE = (133, 173)
 SKIN_CB_RANGE = (77, 127)
 

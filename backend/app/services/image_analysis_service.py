@@ -1,8 +1,17 @@
 """Orkestrasi analisis image: validasi, deteksi wajah, estimasi skin tone & undertone.
 
-Output akhir berupa skin_tone_value dan undertone_value yang diperlakukan sama
-seperti input manual — FIS Layer 1/2 dan ROC tidak perlu tahu asal inputnya
-(prinsip integrasi PRD 15.3). Foto asli tidak pernah disimpan (NFR-IMG-02).
+Pipeline 7 langkah berurutan:
+  1. validate_file     — format (JPEG/PNG), ukuran (≤5 MB), resolusi (≥200 px)
+  2. check_brightness  — rata-rata grayscale 50–215 (hindari terlalu gelap/terang)
+  3. check_blur        — variance-of-Laplacian ≥ 45 (foto harus cukup tajam)
+  4. evaluate_faces    — Haar Cascade; tepat 1 wajah dominan, ukuran cukup besar
+  5. sample_skin_color — 4-patch + YCrCb mask → median RGB kulit representatif
+  6. estimate_skin_tone — ITA (Chardon 1991 / Del Bino 2013) → kode I–VI (Nasr 2018)
+  7. estimate_undertone — sudut hue CIELAB (Nasr 2018) → COOL/NEUTRAL/WARM
+
+Output skin_tone_value dan undertone_value identik format-nya dengan input manual,
+sehingga FIS Layer 1/2 dan ROC tidak perlu mengetahui asal inputnya (PRD 15.3).
+Foto asli tidak pernah disimpan (NFR-IMG-02); hanya data turunan yang dipersistensikan.
 """
 import colorsys
 from typing import Optional

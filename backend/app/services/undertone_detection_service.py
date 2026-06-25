@@ -1,9 +1,26 @@
 """Estimasi undertone dari warna kulit representatif (FR-IMG-07).
 
-Menggunakan sudut hue CIELAB (hab = atan2(b*, a*)): kulit dengan undertone
-warm condong ke kuning (sudut hue besar), cool condong ke merah muda/biru
-(sudut hue kecil), dan di antaranya neutral. Output kompatibel dengan
-kategori COOL/NEUTRAL/WARM pada FIS Layer 1 existing.
+Dasar teori:
+  Nasr (2018) mendefinisikan undertone berdasarkan pigmen dominan yang
+  tampak pada warna kulit:
+    - WARM  → kandungan kuning (karotenoid / eumelanin) dominan
+    - COOL  → kandungan merah-muda / kebiruan (oksihemoglobin) dominan
+    - NEUTRAL → keseimbangan antara keduanya
+
+  Implementasi menggunakan sudut hue CIELAB (h_ab = atan2(b*, a*)):
+    - b* tinggi relatif terhadap a*  → sudut hue besar → WARM
+    - a* tinggi relatif terhadap b*  → sudut hue kecil → COOL
+    - keseimbangan a* dan b*         → sudut hue tengah → NEUTRAL
+
+  Ruang CIELAB dipilih karena perceptually uniform sehingga rasio b*/a*
+  langsung merepresentasikan dominansi pigmen kuning vs merah-muda.
+
+Keputusan desain:
+  Batas HUE_COOL_MAX = 47° dan HUE_WARM_MIN = 58° adalah parameter
+  kalibrasi sistem yang ditetapkan berdasarkan distribusi tipikal sudut hue
+  kulit manusia (a* ≈ 10–20, b* ≈ 10–30) pada sampel wajah yang dipotret
+  dalam kondisi pencahayaan standar. Batas ini bukan nilai dari literatur
+  yang dapat dikutip secara langsung.
 """
 import math
 
@@ -11,15 +28,15 @@ from app.services.input_validation_service import UNDERTONE_MAP
 from app.services.skin_tone_detection_service import rgb_to_lab
 
 
-# Sudut hue (derajat) batas kategori undertone untuk sampel kulit.
-HUE_COOL_MAX = 47.0
-HUE_WARM_MIN = 58.0
+# Batas sudut hue (derajat) antar kategori undertone — parameter kalibrasi desain.
+# Kulit tipikal: a* ∈ [10, 20], b* ∈ [10, 30] → h_ab ∈ [26°, 72°]
+HUE_COOL_MAX = 47.0   # ≤ 47° → COOL
+HUE_WARM_MIN = 58.0   # ≥ 58° → WARM, antara keduanya → NEUTRAL
 
 
 def compute_hue_angle(rgb: tuple[int, int, int]) -> float:
     _, a_star, b_star = rgb_to_lab(rgb)
-    if abs(a_star) < 1e-6:
-        a_star = 1e-6
+    # atan2 menangani a_star = 0 secara native; tidak perlu guard pembagi.
     return math.degrees(math.atan2(b_star, a_star))
 
 

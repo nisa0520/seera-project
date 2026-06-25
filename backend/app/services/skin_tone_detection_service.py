@@ -1,8 +1,32 @@
 """Estimasi skin tone dari warna kulit representatif (FR-IMG-06).
 
-Menggunakan Individual Typology Angle (ITA) pada ruang warna CIELAB —
-ukuran standar dermatologi (Del Bino & Bernerd) — lalu dipetakan ke skala
-Fitzpatrick I–VI yang dipakai FIS Layer 1 existing.
+Rantai teori yang diimplementasikan:
+
+  1. Chardon et al. (1991) — mendefinisikan Individual Typology Angle (ITA):
+        ITA = arctan((L* − 50) / b*)  [derajat]
+     dihitung pada ruang warna CIELAB (iluminan D65). ITA adalah ukuran
+     kuantitatif pigmentasi melanin konstitusional berdasarkan kecerahan
+     (L*) dan komponen kuning (b*).
+
+  2. Del Bino & Bernerd (2013) — memvalidasi ITA pada 3.500 perempuan dari
+     populasi Asia, Afrika, Eropa, dan Amerika Latin, dan menetapkan 6
+     kategori dengan batas 55° / 41° / 28° / 10° / −30°.
+     Nama kategori asli Del Bino: Very Light / Light / Intermediate /
+     Tan / Brown / Dark.
+
+  3. Nasr (2018) — menggunakan skala Fitzpatrick dalam konteks fashion
+     dengan label: Very Fair / Fair / Medium Fair / Moderate Brown /
+     Brown / Dark Brown.
+
+Keputusan desain: keenam kategori ITA Del Bino dipadankan (aligned) dengan
+nama Nasr karena keduanya merepresentasikan spektrum warna kulit yang sama
+dari paling terang ke paling gelap. Pemadanan ini membuat output kompatibel
+dengan FIS Layer 1 existing yang menggunakan label Nasr.
+
+Catatan batasan: Del Bino menyatakan Fitzpatrick "ill-adapted to Asians";
+ITA justru menjadi alternatif yang lebih terukur. Namun batas 28° (III/IV)
+belum divalidasi spesifik untuk populasi Indonesia — zona ini paling sensitif
+karena L* ≈ 50 membuat denominator ITA mendekati nol.
 """
 import math
 
@@ -12,9 +36,10 @@ import numpy as np
 from app.services.input_validation_service import SKIN_TONE_MAP
 
 
-# Batas ITA (derajat) per kategori, urut dari paling terang.
-# > 55: Very Light, 41–55: Light, 28–41: Intermediate, 10–28: Tan,
-# -30–10: Brown, <= -30: Dark.
+# Batas ITA (derajat) dari Del Bino & Bernerd (2013), urut dari paling terang.
+# Del Bino : Very Light | Light | Intermediate | Tan    | Brown | Dark
+# Nasr     : Very Fair  | Fair  | Medium Fair  | Mod. Brown | Brown | Dark Brown
+# Kode FIS : I          | II    | III          | IV     | V     | VI
 ITA_BOUNDARIES = (55.0, 41.0, 28.0, 10.0, -30.0)
 ITA_CODES = ("I", "II", "III", "IV", "V", "VI")
 

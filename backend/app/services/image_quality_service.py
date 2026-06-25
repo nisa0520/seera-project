@@ -2,6 +2,11 @@
 
 Modul ini sengaja terpisah dari logika fuzzy/ROC (NFR-IMG-07): hanya menangani
 dekoding file, validasi format/ukuran, pencahayaan, dan ketajaman.
+
+Semua ambang batas (brightness 50–215, blur variance ≥ 45, resolusi ≥ 200 px)
+adalah parameter kalibrasi desain: memastikan input cukup berkualitas agar
+konversi RGB→CIELAB menghasilkan nilai L*, a*, b* yang representatif. Nilai
+disimpan di Settings agar dapat dikonfigurasi tanpa mengubah kode.
 """
 import io
 from typing import Optional
