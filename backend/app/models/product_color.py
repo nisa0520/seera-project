@@ -18,8 +18,8 @@ class ProductColor(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     __table_args__ = (
-        CheckConstraint("color_role IN ('DOMINANT','SECONDARY','MOTIF','ACCENT')", name="ck_product_color_role"),
-        CheckConstraint("color_rank BETWEEN 1 AND 4", name="ck_product_color_rank"),
+        CheckConstraint("color_role IN ('DOMINANT','SECONDARY','ACCENT')", name="ck_product_color_role"),
+        CheckConstraint("color_rank BETWEEN 1 AND 3", name="ck_product_color_rank"),
         CheckConstraint(
             "color_percentage IS NULL OR (color_percentage >= 0 AND color_percentage <= 100)",
             name="ck_product_color_percentage",

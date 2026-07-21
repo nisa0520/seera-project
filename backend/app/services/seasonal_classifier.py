@@ -1,14 +1,26 @@
-"""FIS Layer 1 - Seasonal Color Type classification per PRD Section 17.5."""
-from typing import Optional
-from app.services.fuzzy_membership import memberships, SKIN_TONE_SETS, UNDERTONE_SETS, SEASONAL_SETS_Y1, evaluate_set
+"""FIS Layer 1 - Klasifikasi Seasonal Color Type per Bab IV.2.7.3.
 
+Skin Tone dan Undertone dipilih pengguna secara diskrit (tombol antarmuka),
+sehingga difuzzifikasi non-singleton (Persamaan 3-4): kategori terpilih
+direpresentasikan sebagai himpunan fuzzy penuh, bukan titik crisp tunggal,
+agar tumpang-tindih terhadap kategori tetangga tetap terjaga.
 
-SEASONAL_SINGLETONS = {
-    "SPRING": 0.5,
-    "SUMMER": 1.5,
-    "AUTUMN": 2.0,
-    "WINTER": 2.5,
-}
+Keluaran berupa vektor keanggotaan musim (Spring/Summer/Autumn/Winter) hasil
+agregasi MAX antar-aturan sekonsekuen (Persamaan 6), TANPA defuzzifikasi -
+karena struktur ketetanggaan keempat musim bersifat siklis (Gambar IV.18),
+bukan linear, sehingga rata-rata terbobot pada satu sumbu numerik akan
+menghasilkan keliru-klasifikasi (lihat Subbab IV.2.7.3 Poin 3).
+"""
+from app.services.fuzzy_membership import (
+    SKIN_TONE_SETS,
+    SKIN_TONE_ORDER,
+    SKIN_TONE_VALUE_TO_KEY,
+    UNDERTONE_SETS,
+    UNDERTONE_ORDER,
+    UNDERTONE_VALUE_TO_KEY,
+    non_singleton_fire,
+)
+
 
 SEASONAL_NAMES = {
     "SPRING": "Spring",
@@ -17,84 +29,64 @@ SEASONAL_NAMES = {
     "WINTER": "Winter",
 }
 
-# (skin_tone_set, undertone_set, output_seasonal, weight, rule_id)
+# (skin_tone_set, undertone_set, output_seasonal, rule_id) - Tabel IV.14.
 LAYER1_RULES = [
-    ("VERY_FAIR", "COOL", "SUMMER", 1.0, "L1-R1"),
-    ("FAIR", "COOL", "SUMMER", 1.0, "L1-R2"),
-    ("MEDIUM_FAIR", "COOL", "SUMMER", 0.8, "L1-R3"),
-    ("MODERATE_BROWN", "COOL", "WINTER", 1.0, "L1-R4"),
-    ("BROWN", "COOL", "WINTER", 1.0, "L1-R5"),
-    ("DARK_BROWN", "COOL", "WINTER", 1.0, "L1-R6"),
-    ("VERY_FAIR", "WARM", "SPRING", 1.0, "L1-R7"),
-    ("FAIR", "WARM", "SPRING", 1.0, "L1-R8"),
-    ("MEDIUM_FAIR", "WARM", "SPRING", 0.8, "L1-R9"),
-    ("MODERATE_BROWN", "WARM", "AUTUMN", 1.0, "L1-R10"),
-    ("BROWN", "WARM", "AUTUMN", 1.0, "L1-R11"),
-    ("DARK_BROWN", "WARM", "AUTUMN", 0.8, "L1-R12"),
-    ("VERY_FAIR", "NEUTRAL", "SUMMER", 0.7, "L1-R13"),
-    ("FAIR", "NEUTRAL", "SUMMER", 0.7, "L1-R14"),
-    ("MEDIUM_FAIR", "NEUTRAL", "SPRING", 0.7, "L1-R15"),
-    ("MODERATE_BROWN", "NEUTRAL", "AUTUMN", 0.7, "L1-R16"),
-    ("BROWN", "NEUTRAL", "AUTUMN", 0.7, "L1-R17"),
-    ("DARK_BROWN", "NEUTRAL", "WINTER", 0.7, "L1-R18"),
+    ("VERY_FAIR", "COOL", "SUMMER", "R1"),
+    ("FAIR", "COOL", "SUMMER", "R2"),
+    ("MEDIUM_FAIR", "COOL", "SUMMER", "R3"),
+    ("MODERATE_BROWN", "COOL", "WINTER", "R4"),
+    ("BROWN", "COOL", "WINTER", "R5"),
+    ("DARK_BROWN", "COOL", "WINTER", "R6"),
+    ("VERY_FAIR", "WARM", "SPRING", "R7"),
+    ("FAIR", "WARM", "SPRING", "R8"),
+    ("MEDIUM_FAIR", "WARM", "SPRING", "R9"),
+    ("MODERATE_BROWN", "WARM", "AUTUMN", "R10"),
+    ("BROWN", "WARM", "AUTUMN", "R11"),
+    ("DARK_BROWN", "WARM", "AUTUMN", "R12"),
+    ("VERY_FAIR", "NEUTRAL", "SUMMER", "R13"),
+    ("FAIR", "NEUTRAL", "SUMMER", "R14"),
+    ("MEDIUM_FAIR", "NEUTRAL", "SPRING", "R15"),
+    ("MODERATE_BROWN", "NEUTRAL", "AUTUMN", "R16"),
+    ("BROWN", "NEUTRAL", "AUTUMN", "R17"),
+    ("DARK_BROWN", "NEUTRAL", "WINTER", "R18"),
 ]
 
 
 def classify(skin_tone: float, undertone: float) -> dict:
-    mu_skin = memberships(skin_tone, SKIN_TONE_SETS)
-    mu_under = memberships(undertone, UNDERTONE_SETS)
+    skin_key = SKIN_TONE_VALUE_TO_KEY[skin_tone]
+    undertone_key = UNDERTONE_VALUE_TO_KEY[undertone]
+
+    fire_skin = non_singleton_fire(skin_key, SKIN_TONE_SETS, SKIN_TONE_ORDER)
+    fire_undertone = non_singleton_fire(undertone_key, UNDERTONE_SETS, UNDERTONE_ORDER)
 
     fired = []
-    numerator = 0.0
-    denominator = 0.0
+    seasonal_membership = {"SPRING": 0.0, "SUMMER": 0.0, "AUTUMN": 0.0, "WINTER": 0.0}
 
-    for skin_set, under_set, seasonal_out, weight, rule_id in LAYER1_RULES:
-        mu_a = mu_skin.get(skin_set, 0.0)
-        mu_b = mu_under.get(under_set, 0.0)
-        alpha = min(mu_a, mu_b) * weight
-        if alpha > 0:
-            singleton = SEASONAL_SINGLETONS[seasonal_out]
-            numerator += alpha * singleton
-            denominator += alpha
-            fired.append({
-                "rule_id": rule_id,
-                "skin_set": skin_set,
-                "undertone_set": under_set,
-                "output_seasonal": seasonal_out,
-                "alpha": alpha,
-                "singleton": singleton,
-                "weight": weight,
-            })
+    for skin_set, undertone_set, seasonal_out, rule_id in LAYER1_RULES:
+        mu_a = fire_skin.get(skin_set, 0.0)
+        mu_b = fire_undertone.get(undertone_set, 0.0)
+        alpha = min(mu_a, mu_b)  # Persamaan 5
+        if alpha <= 0:
+            continue
+        fired.append({
+            "rule_id": rule_id,
+            "skin_set": skin_set,
+            "undertone_set": undertone_set,
+            "output_seasonal": seasonal_out,
+            "alpha": alpha,
+        })
+        if alpha > seasonal_membership[seasonal_out]:  # Persamaan 6 (MAX)
+            seasonal_membership[seasonal_out] = alpha
 
-    if denominator > 0:
-        y1 = numerator / denominator
-    else:
-        y1 = 1.5  # fallback to Summer if no rules fire
-
-    # Fuzzify Y1 into seasonal memberships
-    seasonal_membership = {}
-    for label, set_def in SEASONAL_SETS_Y1.items():
-        seasonal_membership[label] = evaluate_set(y1, set_def)
-
-    # Determine dominant seasonal
-    if max(seasonal_membership.values()) == 0:
-        # snap to the nearest singleton
-        dominant = min(
-            SEASONAL_SINGLETONS.items(),
-            key=lambda kv: abs(kv[1] - y1),
-        )[0]
-        score_seasonal = 1.0
-    else:
-        dominant = max(seasonal_membership.items(), key=lambda kv: kv[1])[0]
-        score_seasonal = seasonal_membership[dominant]
+    dominant = max(seasonal_membership.items(), key=lambda kv: kv[1])[0]
+    score_seasonal = seasonal_membership[dominant]
 
     return {
-        "y1_continuous": y1,
         "seasonal_code": dominant,
         "seasonal_name": SEASONAL_NAMES[dominant],
         "score_seasonal": score_seasonal,
         "seasonal_membership": seasonal_membership,
-        "skin_membership": mu_skin,
-        "undertone_membership": mu_under,
+        "skin_membership": fire_skin,
+        "undertone_membership": fire_undertone,
         "fired_rules": fired,
     }

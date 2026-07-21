@@ -1,9 +1,8 @@
 """Tests for the additive synthetic catalog generator (app.catalog_gen).
 
 These exercise the acceptance-critical guarantees: determinism (byte-identical re-run),
-schema-valid colour-first records, palette-only colours, the ΔE2000 QA gate, inherited
-non-upgraded VTON tiers, and background preservation (pixels outside the garment mask
-are never modified).
+schema-valid colour-first records, palette-only colours, the ΔE2000 QA gate, and
+background preservation (pixels outside the garment mask are never modified).
 """
 import numpy as np
 import pytest
@@ -15,7 +14,6 @@ from app.catalog_gen.data_gen import RANK_ROLE, generate_spec
 from app.catalog_gen.palette import Palette
 from app.catalog_gen.pipeline import Generator
 from app.catalog_gen.templates import TemplateRegistry
-from app.models.product_vton_asset import TIER_NOT_SUPPORTED
 
 SEED = 7
 COUNT = 24
@@ -27,7 +25,6 @@ def _cfg(tmp_path, **over) -> GenConfig:
         seed=SEED,
         out_catalog_dir=tmp_path / "catalog",
         out_cutout_dir=tmp_path / "cutout",
-        out_garment_dir=tmp_path / "garment",
         out_manifest=tmp_path / "manifest.json",
         out_seed=tmp_path / "seed" / "generated_products.py",
     )
@@ -87,18 +84,6 @@ def test_qa_passes_for_all_persisted(tmp_path):
             continue
         assert qa["passed"] is True
         assert qa["dominant_ok"] is True
-
-
-def test_vton_tier_never_upgraded_and_hijab_not_supported(tmp_path):
-    _, manifest = Generator(_cfg(tmp_path)).run()
-    registry = TemplateRegistry()
-    order = {"vton_not_supported": 0, "vton_limited": 1, "vton_experimental": 2, "vton_ready": 3}
-    for e in manifest["entries"]:
-        template = registry.by_url(e["template"])
-        assert order[e["vton_tier"]] <= order[template.tier]  # never above the template
-        if template.tier == TIER_NOT_SUPPORTED:
-            assert e["vton_tier"] == TIER_NOT_SUPPORTED
-            assert e["garment_url"] is None
 
 
 def test_background_outside_mask_is_unchanged(tmp_path):

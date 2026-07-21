@@ -60,7 +60,7 @@
             <div v-if="item.role !== 'user'" class="seera-chatbot__row-avatar" />
             <div
               class="seera-chatbot__row-stack"
-              :class="{ 'seera-chatbot__row-stack--wide': item.kind === 'gender' || item.kind === 'fitz' || item.kind === 'undertone' || item.kind === 'education' || item.kind === 'camera' || item.kind === 'image-result' || item.kind === 'vton' }"
+              :class="{ 'seera-chatbot__row-stack--wide': item.kind === 'gender' || item.kind === 'fitz' || item.kind === 'undertone' || item.kind === 'education' }"
             >
               <!-- User bubble -->
               <div v-if="item.role === 'user'" class="seera-chatbot__bubble seera-chatbot__bubble--user">
@@ -296,19 +296,6 @@
                             :title="`${c.color_name} (${c.label_indonesian})`"
                           />
                         </div>
-                        <!-- Status realistic try-on per produk + tier (PRD AssetTier 16.1) -->
-                        <button
-                          v-if="p.vton_supported"
-                          type="button"
-                          class="seera-chatbot__qr seera-chatbot__qr--try-face"
-                          :disabled="loading"
-                          @click.stop="openVtonPanel(p, item.items)"
-                        >
-                          {{ p.vton_asset_tier === 'vton_ready' ? 'Coba Realistic Try-On' : 'Coba Preview (Eksperimental)' }}
-                        </button>
-                        <span v-else class="seera-chatbot__vton-unavailable">
-                          Try-On belum tersedia
-                        </span>
                       </div>
                     </div>
                   </div>
@@ -328,35 +315,6 @@
                     <div v-if="!item.colors.length" class="seera-chatbot__empty">Tidak ada warna yang perlu dihindari secara khusus.</div>
                   </div>
                 </div>
-
-                <!-- ═══ Kamera + face guide (FR-IMG-02/03) ═══ -->
-                <CameraCapturePanel
-                  v-if="item.kind === 'camera' && idx === lastBotIndex"
-                  :disabled="loading"
-                  @captured="onImageCaptured"
-                  @manual="chooseManualInput"
-                />
-
-                <!-- ═══ Hasil deteksi image (FR-IMG-08) ═══ -->
-                <ImageAnalysisResultCard
-                  v-if="item.kind === 'image-result' && item.imageResult"
-                  :result="item.imageResult"
-                  :face-crop="faceCropUrl"
-                  :sample-hex="item.imageResult.sample_hex"
-                  :disabled="loading || idx !== lastBotIndex"
-                  @confirm="onImageResultConfirm"
-                  @retake="onImageRetake"
-                />
-
-                <!-- ═══ Realistic Virtual Try-On / CatVTON (PRD CatVTON) ═══ -->
-                <VtonTryOnPanel
-                  v-if="item.kind === 'vton' && item.vton"
-                  :session-id="sessionId"
-                  :initial-product="item.vton.product"
-                  :products="item.vton.products"
-                  :backgrounds="backgroundPresets"
-                  @back="showRecommendationAgain"
-                />
 
                 <!-- ═══ Feedback ═══ -->
                 <div v-if="item.kind === 'feedback'" class="seera-chatbot__block">
@@ -386,7 +344,7 @@
 
                 <!-- Quick replies — tidak tampil untuk selector khusus -->
                 <div
-                  v-if="item.quick_replies && idx === lastBotIndex && !loading && item.kind !== 'gender' && item.kind !== 'fitz' && item.kind !== 'undertone' && item.kind !== 'camera' && item.kind !== 'image-result' && item.kind !== 'vton'"
+                  v-if="item.quick_replies && idx === lastBotIndex && !loading && item.kind !== 'gender' && item.kind !== 'fitz' && item.kind !== 'undertone'"
                   class="seera-chatbot__quick-replies"
                 >
                   <button
@@ -439,9 +397,6 @@
 import { ref, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { chatbotApi } from '../../api/chatbot'
-import CameraCapturePanel from './CameraCapturePanel.vue'
-import ImageAnalysisResultCard from './ImageAnalysisResultCard.vue'
-import VtonTryOnPanel from './VtonTryOnPanel.vue'
 
 // ── Static data ──────────────────────────────────────────────────────────────
 
@@ -528,11 +483,6 @@ const RESERVED_QUICK_REPLY_VALUES = new Set([
   'CHANGE_GENDER',
   'CHANGE_SKIN_TONE',
   'CHANGE_UNDERTONE',
-  'INPUT_METHOD_IMAGE',
-  'INPUT_METHOD_MANUAL',
-  'IMAGE_CONFIRM',
-  'IMAGE_ADJUST',
-  'IMAGE_RETAKE',
   'BACK_TO_RECOMMENDATION',
 ])
 
@@ -564,10 +514,6 @@ const savedMessagesScrollTop = ref(0)
 const restoreMessagesToBottom = ref(false)
 const router = useRouter()
 
-// ── Image mode state (hanya di memori sesi — foto tidak disimpan permanen) ──
-const faceCropUrl = ref(null)
-const capturedImageUrl = ref(null)
-const backgroundPresets = ref([])
 const lastRecommendationItems = ref([])
 
 // ── Computed ──────────────────────────────────────────────────────────────────
@@ -821,7 +767,6 @@ function botKindForState(data) {
   if (data.conversation_state === 'WAITING_GENDER') return 'gender'
   if (data.conversation_state === 'WAITING_SKIN_TONE') return 'fitz'
   if (data.conversation_state === 'WAITING_UNDERTONE') return 'undertone'
-  if (data.conversation_state === 'WAITING_IMAGE_CAPTURE') return 'camera'
   return null
 }
 
@@ -856,7 +801,7 @@ async function resetSession() {
   changingTarget.value = null
   feedbackRating.value = 0
   feedbackComment.value = ''
-  clearImageSessionData()
+  lastRecommendationItems.value = []
   await startConversation()
 }
 
@@ -866,7 +811,6 @@ async function startConversation() {
     selectedGender.value = null
     selectedSkinTone.value = null
     selectedUndertone.value = null
-    clearImageSessionData()
     const data = await chatbotApi.start()
     sessionId.value = data.session_id
     conversationState.value = data.conversation_state
@@ -889,7 +833,7 @@ async function restartProfiling() {
     selectedUndertone.value = null
     feedbackRating.value = 0
     feedbackComment.value = ''
-    clearImageSessionData()
+    lastRecommendationItems.value = []
     pushBot({ text: data.message, kind: 'gender' })
   } catch {
     pushBot({ text: 'Gagal memulai ulang sesi.' })
@@ -1125,178 +1069,6 @@ async function submitFeedback(isSkipped) {
   }
 }
 
-// ── Image mode: capture, analisis, konfirmasi, visual matching ───────────────
-
-function clearImageSessionData() {
-  faceCropUrl.value = null
-  if (capturedImageUrl.value) {
-    URL.revokeObjectURL(capturedImageUrl.value)
-    capturedImageUrl.value = null
-  }
-  lastRecommendationItems.value = []
-}
-
-async function startImageMode() {
-  loading.value = true
-  try {
-    const data = await chatbotApi.startImageMode(sessionId.value)
-    conversationState.value = data.conversation_state
-    pushBot({ text: data.message, kind: 'camera' })
-  } catch (err) {
-    pushBot({ text: err.body?.detail?.message || 'Gagal membuka mode foto.' })
-  } finally {
-    loading.value = false
-  }
-}
-
-async function chooseManualInput(announce = true) {
-  if (announce) pushUser('Pilih manual')
-  loading.value = true
-  try {
-    const data = await chatbotApi.setInputMethod(sessionId.value, 'MANUAL')
-    conversationState.value = data.conversation_state
-    selectedSkinTone.value = null
-    pushBot({ text: data.message, kind: 'fitz' })
-  } catch (err) {
-    pushBot({ text: err.body?.detail?.message || 'Gagal beralih ke input manual.' })
-  } finally {
-    loading.value = false
-  }
-}
-
-async function onImageCaptured({ file, sourceType }) {
-  pushUser(sourceType === 'CAMERA' ? '[Foto diambil dari kamera]' : '[Foto diunggah dari galeri]')
-  loading.value = true
-  try {
-    const data = await chatbotApi.analyzeImage(sessionId.value, file, sourceType)
-    conversationState.value = data.conversation_state
-
-    if (!data.requires_confirmation) {
-      // Validasi gagal — tampilkan alasan + panel kamera untuk coba lagi (FR-IMG-15)
-      pushBot({ text: data.message, kind: 'camera' })
-      return
-    }
-
-    if (data.face_crop?.data_url) {
-      // Crop kepala hasil pemrosesan server (tersegmentasi) untuk kartu hasil deteksi
-      faceCropUrl.value = data.face_crop.data_url
-    } else {
-      await buildFaceCrop(file, data.face_bbox, data.image_size)
-    }
-    pushBot({
-      text: data.message,
-      kind: 'image-result',
-      imageResult: {
-        skin_tone: data.skin_tone,
-        undertone: data.undertone,
-        sample_hex: data.sample_hex,
-        low_confidence: data.low_confidence
-      }
-    })
-  } catch (err) {
-    pushBot({ text: err.body?.detail?.message || 'Gagal menganalisis foto. Silakan coba lagi.', kind: 'camera' })
-  } finally {
-    loading.value = false
-  }
-}
-
-// Crop wajah deterministik untuk virtual try-on: wajah selalu menempati 70%
-// lebar crop dengan pusat di 44% tinggi (portrait 1:1.25). Framing yang tetap
-// membuat skala kepala-badan konsisten terhadap anchor foto produk.
-// Crop hanya disimpan di memori sesi (NFR-IMG-02).
-const FACE_CROP_FRACTION = 0.7
-const FACE_CROP_CENTER_Y = 0.44
-const FACE_CROP_RATIO = 1.25
-
-function buildFaceCrop(file, bbox, imageSize) {
-  return new Promise((resolve) => {
-    if (!bbox || !imageSize) { resolve(); return }
-    const img = new Image()
-    const objectUrl = URL.createObjectURL(file)
-    img.onload = () => {
-      try {
-        const faceCx = bbox.x + bbox.width / 2
-        const faceCy = bbox.y + bbox.height / 2
-        const cropW = bbox.width / FACE_CROP_FRACTION
-        const cropH = cropW * FACE_CROP_RATIO
-        const sx = faceCx - cropW / 2
-        const sy = faceCy - cropH * FACE_CROP_CENTER_Y
-        const canvas = document.createElement('canvas')
-        canvas.width = 256
-        canvas.height = 320
-        // PNG agar area di luar foto sumber tetap transparan (tertutup feather mask)
-        canvas.getContext('2d').drawImage(img, sx, sy, cropW, cropH, 0, 0, 256, 320)
-        faceCropUrl.value = canvas.toDataURL('image/png')
-      } catch { /* crop gagal — preview pakai fallback */ }
-      URL.revokeObjectURL(objectUrl)
-      resolve()
-    }
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve() }
-    img.src = objectUrl
-  })
-}
-
-async function onImageResultConfirm({ correctedSkinTone, correctedUndertone }) {
-  pushUser(correctedSkinTone || correctedUndertone ? 'Gunakan hasil yang sudah saya ubah' : 'Lanjutkan')
-  loading.value = true
-  try {
-    const data = await chatbotApi.confirmImageAnalysis(sessionId.value, {
-      isConfirmed: true,
-      correctedSkinTone,
-      correctedUndertone
-    })
-    conversationState.value = data.conversation_state
-    pushBot({ text: data.message, quick_replies: data.quick_replies, kind: 'summary', summary: data.summary })
-  } catch (err) {
-    pushBot({ text: err.body?.detail?.message || 'Gagal mengonfirmasi hasil deteksi.' })
-  } finally {
-    loading.value = false
-  }
-}
-
-async function onImageRetake() {
-  pushUser('Ambil ulang foto')
-  loading.value = true
-  try {
-    const data = await chatbotApi.confirmImageAnalysis(sessionId.value, { isConfirmed: false })
-    conversationState.value = data.conversation_state
-    faceCropUrl.value = null
-    pushBot({ text: data.message, kind: 'camera' })
-  } catch (err) {
-    pushBot({ text: err.body?.detail?.message || 'Gagal memulai pengambilan ulang foto.' })
-  } finally {
-    loading.value = false
-  }
-}
-
-async function ensureBackgroundsLoaded() {
-  if (backgroundPresets.value.length) return
-  try {
-    const data = await chatbotApi.listBackgrounds()
-    backgroundPresets.value = data.backgrounds || []
-  } catch {
-    backgroundPresets.value = []
-  }
-}
-
-async function openVtonPanel(product, items) {
-  pushUser(`Coba virtual try-on "${product.product_name}"`)
-  loading.value = true
-  try {
-    await ensureBackgroundsLoaded()
-    pushBot({
-      kind: 'vton',
-      vton: {
-        product,
-        // Produk lain yang masih bisa di-try-on (ready/experimental/limited)
-        products: (items || lastRecommendationItems.value).filter((p) => p.vton_supported)
-      }
-    })
-  } finally {
-    loading.value = false
-  }
-}
-
 function showRecommendationAgain() {
   if (!lastRecommendationItems.value.length) return
   pushBot({
@@ -1337,12 +1109,6 @@ async function handleQuickReply(qr) {
   if (value === 'FILTER_PRICE_ASC') return applyFilter('PRICE_ASC')
   if (value === 'FILTER_RATING_DESC') return applyFilter('RATING_DESC')
   if (value === 'FILTER_POPULARITY_DESC') return applyFilter('POPULARITY_DESC')
-  if (value === 'INPUT_METHOD_IMAGE') return startImageMode()
-  if (value === 'INPUT_METHOD_MANUAL') return chooseManualInput(false)
-  if (value === 'IMAGE_RETAKE') {
-    if (conversationState.value === 'WAITING_IMAGE_RESULT_CONFIRMATION') return onImageRetake()
-    return startImageMode()
-  }
   if (value === 'BACK_TO_RECOMMENDATION') return showRecommendationAgain()
 
   const state = conversationState.value
@@ -1991,17 +1757,6 @@ async function sendFreeText() {
 }
 .seera-chatbot__qr--primary { background: var(--seera-clay); color: #fff; border-color: var(--seera-clay); }
 .seera-chatbot__qr--primary:hover { background: var(--seera-clay-deep); border-color: var(--seera-clay-deep); }
-.seera-chatbot__qr--try-face { margin-top: 6px; align-self: flex-start; font-size: 11px; padding: 5px 11px; }
-.seera-chatbot__vton-unavailable {
-  display: inline-block;
-  margin-top: 6px;
-  align-self: flex-start;
-  font-size: 10px;
-  color: var(--seera-ink-3);
-  border: 1px dashed var(--seera-line-2);
-  border-radius: 999px;
-  padding: 4px 10px;
-}
 
 /* ── Typing indicator ──────────────────────────────────────────────────────── */
 

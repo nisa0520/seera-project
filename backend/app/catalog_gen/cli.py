@@ -9,7 +9,6 @@ Examples::
 Defaults write:
   * catalog PNGs -> public/generated/
   * try-on cutouts -> public/tryon/generated/
-  * VTON garments -> backend/static/vton_garments/
   * manifest -> build/generated_manifest.json
   * seed module -> backend/app/seed/generated/generated_products.py  (importable)
 """
@@ -54,8 +53,6 @@ def build_parser() -> argparse.ArgumentParser:
                    help="catalog image dir (default public/generated)")
     p.add_argument("--out-cutouts", type=str, default=None,
                    help="try-on cutout dir (default public/tryon/generated)")
-    p.add_argument("--out-garments", type=str, default=None,
-                   help="VTON garment dir (default backend/static/vton_garments)")
     p.add_argument("--out-manifest", type=str, default=None,
                    help="manifest JSON path (default build/generated_manifest.json)")
     p.add_argument("--emit-seed", type=str, default=None,
@@ -86,7 +83,6 @@ def config_from_args(args: argparse.Namespace) -> GenConfig:
         color_distribution=_parse_distribution(args.color_distribution),
         out_catalog_dir=_resolve(args.out_images, paths.DEFAULT_CATALOG_DIR),
         out_cutout_dir=_resolve(args.out_cutouts, paths.DEFAULT_CUTOUT_DIR),
-        out_garment_dir=_resolve(args.out_garments, paths.DEFAULT_GARMENT_DIR),
         out_manifest=_resolve(args.out_manifest, paths.DEFAULT_MANIFEST),
         out_seed=_resolve(args.emit_seed, paths.DEFAULT_SEED_OUT),
         limit_templates=limit,

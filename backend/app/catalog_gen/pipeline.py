@@ -103,8 +103,6 @@ class Generator:
         ext = spec.external_catalog_id
         _save_png(cat, self.cfg.out_catalog_dir / f"{ext}.png")
         _save_png(subj, self.cfg.out_cutout_dir / f"{ext}.png")
-        if assets.supports_vton_garment(spec):
-            _save_png(subj, self.cfg.out_garment_dir / f"{ext}.png")
 
     def _seed_record(self, spec: ProductSpec) -> dict:
         return {
@@ -127,8 +125,6 @@ class Generator:
         cfg = self.cfg
         stats = RunStats(requested=cfg.count)
         products: List[dict] = []
-        anchors: dict = {}
-        vton: dict = {}
         manifest_entries: List[dict] = []
 
         for i in range(1, cfg.count + 1):
@@ -147,11 +143,6 @@ class Generator:
                 ],
                 "image_url": url,
                 "cutout_url": "/tryon" + url,
-                "garment_url": (
-                    f"/api/v1/vton/garments/{spec.external_catalog_id}.png"
-                    if assets.supports_vton_garment(spec) else None
-                ),
-                "vton_tier": spec.template.tier,
                 "qa": qa.to_jsonable() if qa is not None else {"passed": True, "skipped": True},
                 "persisted": passed,
             }
@@ -167,10 +158,6 @@ class Generator:
                 if not cfg.dry_run:
                     self._persist_images(spec, cat, subj)
                 products.append(self._seed_record(spec))
-                a_url, anchor = assets.visual_anchor_entry(spec)
-                v_url, vspec = assets.vton_seed_entry(spec, cfg)
-                anchors[a_url] = anchor
-                vton[v_url] = vspec
                 stats.persisted += 1
 
             if on_progress and (i % 25 == 0 or i == cfg.count):
@@ -189,7 +176,7 @@ class Generator:
 
         if not cfg.dry_run:
             emit.write_seed_module(
-                cfg.out_seed, products, anchors, vton,
+                cfg.out_seed, products,
                 count=cfg.count, seed=cfg.seed,
             )
             emit.write_manifest(cfg.out_manifest, manifest)

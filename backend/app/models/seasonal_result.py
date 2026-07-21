@@ -16,14 +16,12 @@ class SeasonalResult(Base):
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     seasonal_code: Mapped[str] = mapped_column(String(30), nullable=False)
     seasonal_name: Mapped[str] = mapped_column(String(50), nullable=False)
-    y1_continuous: Mapped[float] = mapped_column(Numeric(8, 6), nullable=False)
     score_seasonal: Mapped[float] = mapped_column(Numeric(8, 6), nullable=False)
     seasonal_membership: Mapped[dict] = mapped_column(JSON, nullable=False)
     fired_rules: Mapped[list] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     __table_args__ = (
-        CheckConstraint("y1_continuous >= 0 AND y1_continuous <= 3", name="ck_y1_range"),
         CheckConstraint("score_seasonal >= 0 AND score_seasonal <= 1", name="ck_score_seasonal_range"),
     )
 

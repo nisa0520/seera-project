@@ -16,11 +16,7 @@ from app.models.product_match_filter import ProductMatchFilter
 from app.services.seasonal_classifier import classify
 from app.services.color_match_service import compute_color_score, LABEL_INDONESIAN, label_for_score
 from app.services.product_ranker import aggregate_product_score, sort_items
-from app.services.vton_eligibility_service import VTONEligibilityService
 from app.core.exceptions import RecommendationNotFoundError
-
-
-ROLE_ORDER = {"DOMINANT": 0, "SECONDARY": 1, "MOTIF": 2, "ACCENT": 3}
 
 
 class RecommendationService:
@@ -35,7 +31,6 @@ class RecommendationService:
             user_id=session.user_id,
             seasonal_code=result["seasonal_code"],
             seasonal_name=result["seasonal_name"],
-            y1_continuous=result["y1_continuous"],
             score_seasonal=result["score_seasonal"],
             seasonal_membership=result["seasonal_membership"],
             fired_rules=result["fired_rules"],
@@ -43,7 +38,6 @@ class RecommendationService:
         self.db.add(sr)
         self.db.flush()
 
-        session.y1_continuous = result["y1_continuous"]
         session.seasonal_type_name = result["seasonal_name"]
         self.db.flush()
 
@@ -112,14 +106,18 @@ class RecommendationService:
                 })
                 y2_values.append(result["y2"])
 
-            aggregated = aggregate_product_score(y2_values)
+            percentages = [
+                float(pc.color_percentage) if pc.color_percentage is not None else None
+                for pc in colors_sorted
+            ]
+            aggregated = aggregate_product_score(y2_values, percentages)
             weights = aggregated["weights"]
 
-            # map per role
-            role_to_roc = {"DOMINANT": None, "SECONDARY": None, "MOTIF": None, "ACCENT": None}
-            for pc, w in zip(colors_sorted, weights):
-                if pc.color_role in role_to_roc:
-                    role_to_roc[pc.color_role] = float(w)
+            # Bobot per peringkat warna (Warna ke-1..n, n<=3) - Persamaan 10/11.
+            rank_weights = [None, None, None]
+            for idx, w in enumerate(weights):
+                if idx < 3:
+                    rank_weights[idx] = float(w)
 
             pmf = ProductMatchFilter(
                 product_id=product.id,
@@ -127,10 +125,10 @@ class RecommendationService:
                 recommendation_id=recommendation.id,
                 match_product_name=product.name,
                 amount_color=aggregated["amount_color"],
-                dominant_roc=role_to_roc["DOMINANT"],
-                secondary_roc=role_to_roc["SECONDARY"],
-                motif_roc=role_to_roc["MOTIF"],
-                accent_roc=role_to_roc["ACCENT"],
+                weight_mode=aggregated["weight_mode"],
+                color_weight_1=rank_weights[0],
+                color_weight_2=rank_weights[1],
+                color_weight_3=rank_weights[2],
                 total_roc_score=aggregated["total_roc_score"],
                 suitability_label=aggregated["label"],
             )
@@ -156,8 +154,6 @@ class RecommendationService:
                 "product_match_filter_id": pmf.id,
                 "image_url": product.image_url,
                 "colors": color_scores_payload,
-                # Status realistic try-on untuk kartu produk (PRD CatVTON 16.1)
-                **VTONEligibilityService.status_for_item(product),
             })
 
         # Tie-break: score desc, rating desc, price asc, name asc
@@ -243,7 +239,6 @@ class RecommendationService:
                 "label_indonesian": LABEL_INDONESIAN.get(item.product_rank_label or "", ""),
                 "product_match_filter_id": item.product_match_filter_id,
                 "colors": colors,
-                **VTONEligibilityService.status_for_item(product),
             })
         return items_out
 

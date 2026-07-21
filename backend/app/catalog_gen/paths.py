@@ -5,10 +5,9 @@ them with no logic change:
 
 * catalog PNG   -> ``public/generated/<id>.png``                (served at ``/generated/<id>.png`` == ``image_url``)
 * try-on cutout -> ``public/tryon/generated/<id>.png``          (== ``_cutout_url(image_url)``)
-* VTON garment  -> ``backend/static/vton_garments/<id>.png``    (== ``_garment_url(image_url)``, which flattens to basename)
 
 The generator never touches existing static assets; everything new lives under a
-``/generated/`` prefix (or, for VTON garments, a uniquely-named ``GEN-*`` file).
+``/generated/`` prefix.
 """
 from __future__ import annotations
 
@@ -24,7 +23,6 @@ PUBLIC_DIR = REPO_ROOT / "public"
 # Image-out roots (defaults; overridable via GenConfig).
 DEFAULT_CATALOG_DIR = PUBLIC_DIR / "generated"
 DEFAULT_CUTOUT_DIR = PUBLIC_DIR / "tryon" / "generated"
-DEFAULT_GARMENT_DIR = BACKEND_DIR / "static" / "vton_garments"
 
 # Existing template assets live directly under public/ and public/tryon/.
 TEMPLATE_IMAGE_DIR = PUBLIC_DIR

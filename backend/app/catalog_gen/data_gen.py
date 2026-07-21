@@ -4,12 +4,10 @@ Colour metadata is the single source of truth and is generated first; the image 
 produced from it later. Everything is driven by a stable per-product seed so the same
 ``external_catalog_id`` always yields the same record.
 
-Role mapping note (schema-driven): the DB enforces ``color_rank BETWEEN 1 AND 4`` *and*
-``UNIQUE(product_id, color_role)``, so a product may have at most four colours and may
-not repeat a role. We therefore map rank→role as DOMINANT / SECONDARY / ACCENT / MOTIF.
-The PRD's "extra colours stay ACCENT" would violate the unique constraint, so per the
-precedence rules (schema wins) the 4th colour uses ``MOTIF`` — a role the recommendation
-pipeline already supports (``ROLE_ORDER``/``role_to_roc`` both include MOTIF).
+Role mapping note (schema-driven): the DB enforces ``color_rank BETWEEN 1 AND 3`` *and*
+``UNIQUE(product_id, color_role)``, so a product may have at most three colours (rule
+of three / 60-30-10, Subbab IV.2.7.5), mapped rank -> role as DOMINANT / SECONDARY /
+ACCENT.
 """
 from __future__ import annotations
 
@@ -23,8 +21,8 @@ from app.catalog_gen.palette import Palette, PaletteColor
 from app.catalog_gen.rng import Deterministic
 from app.catalog_gen.templates import Template, TemplateRegistry
 
-# Rank (1-based) -> role. Index 0 unused.
-RANK_ROLE = {1: "DOMINANT", 2: "SECONDARY", 3: "ACCENT", 4: "MOTIF"}
+# Rank (1-based) -> role. Index 0 unused. Maks 3 warna (rule of three).
+RANK_ROLE = {1: "DOMINANT", 2: "SECONDARY", 3: "ACCENT"}
 
 # Category-aware price centres/bounds (IDR), rounded to the nearest 5,000.
 _PRICE_BANDS = {
@@ -36,7 +34,7 @@ _PRICE_BANDS = {
 }
 
 # Dominant percentage range by colour count (keeps the remainder >= min_share each).
-_DOMINANT_RANGE = {2: (62.0, 80.0), 3: (55.0, 72.0), 4: (48.0, 62.0)}
+_DOMINANT_RANGE = {2: (62.0, 80.0), 3: (55.0, 72.0)}
 
 _STYLE_WORDS = [
     "Classic", "Modern", "Premium", "Daily", "Elegan", "Minimalis", "Signature",
@@ -83,7 +81,7 @@ class ProductSpec:
 
 
 def _choose_k(rng: np.random.RandomState, cfg: GenConfig) -> int:
-    return int(rng.choice([1, 2, 3, 4], p=cfg.color_count_weights()))
+    return int(rng.choice([1, 2, 3], p=cfg.color_count_weights()))
 
 
 def _make_percentages(rng: np.random.RandomState, k: int, min_share: float) -> List[float]:

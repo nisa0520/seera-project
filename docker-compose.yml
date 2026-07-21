@@ -40,18 +40,6 @@ services:
       DATABASE_URL: postgresql+psycopg2://seera:seera_pass@postgres:5432/seera_db
       CORS_ORIGINS: "http://localhost,http://localhost:80,http://127.0.0.1,http://localhost:5173"
       APP_ENV: production
-      # Realistic try-on default model = IDM-VTON (yisol), fallback = CatVTON.
-      # Mode inference: "space" = HuggingFace Space (butuh internet/kuota GPU),
-      # "http" = worker GPU internal, "mock" = demo tanpa GPU.
-      VTON_INFERENCE_MODE: ${VTON_INFERENCE_MODE:-space}
-      VTON_HF_TOKEN: ${VTON_HF_TOKEN:-}
-      VTON_MODEL_PROVIDER: ${VTON_MODEL_PROVIDER:-yisol}
-      VTON_MODEL_REPO: ${VTON_MODEL_REPO:-yisol/IDM-VTON}
-      VTON_SPACE_ID: ${VTON_SPACE_ID:-yisol/IDM-VTON}
-      VTON_FALLBACK_MODEL: ${VTON_FALLBACK_MODEL:-catvton}
-      VTON_ALLOW_EXPERIMENTAL_ASSET_MODE: ${VTON_ALLOW_EXPERIMENTAL_ASSET_MODE:-true}
-      VTON_BLOCK_UNSUPPORTED_ASSETS: ${VTON_BLOCK_UNSUPPORTED_ASSETS:-true}
-      VTON_ENABLE_DEBUG_ARTIFACTS: ${VTON_ENABLE_DEBUG_ARTIFACTS:-true}
     ports:
       - "8000:8000"
     depends_on:

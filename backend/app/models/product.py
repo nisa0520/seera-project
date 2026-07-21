@@ -38,9 +38,3 @@ class Product(Base):
     product_colors: Mapped[List["ProductColor"]] = relationship(
         "ProductColor", back_populates="product", cascade="all,delete-orphan"
     )
-    visual_assets: Mapped[List["ProductVisualAsset"]] = relationship(
-        "ProductVisualAsset", back_populates="product", cascade="all,delete-orphan"
-    )
-    vton_asset: Mapped[Optional["ProductVtonAsset"]] = relationship(
-        "ProductVtonAsset", back_populates="product", uselist=False, cascade="all,delete-orphan"
-    )

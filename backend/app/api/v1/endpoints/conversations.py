@@ -29,8 +29,6 @@ from app.services.conversation_service import (
     STATE_WAITING_CONFIRMATION,
     STATE_WAITING_CHANGE_SELECTION,
     STATE_SHOWING_RECOMMENDATION,
-    STATE_WAITING_INPUT_METHOD,
-    STATE_SHOWING_VISUAL_RECOMMENDATION,
 )
 from app.services.aiml_interpreter import AIMLInterpreter
 from app.services.input_validation_service import (
@@ -106,9 +104,8 @@ def set_gender(session_id: int, payload: GenderRequest, db: DBSession = Depends(
             "summary": _summary_payload(session),
         }
 
-    # FR-IMG-01: tawarkan metode input (foto wajah / manual) sebelum profiling kulit.
-    conv.set_state(session, STATE_WAITING_INPUT_METHOD)
-    response = aiml.respond("INPUT_METHOD_OPTIONS")
+    conv.set_state(session, STATE_WAITING_SKIN_TONE)
+    response = aiml.respond("WELCOME_AND_SKINTONE_LIST")
     conv.log_message(session, response["message"], "BOT", aiml_category_id=response["aiml_category_id"])
 
     db.commit()
@@ -128,11 +125,7 @@ def set_skin_tone(session_id: int, payload: SkinToneRequest, db: DBSession = Dep
     aiml = AIMLInterpreter(db)
 
     session = conv.get_active_session(session_id)
-    # Allow re-entry from waiting_change_selection too; memilih skin tone langsung
-    # dari WAITING_INPUT_METHOD diartikan sebagai memilih jalur manual (kompatibilitas lama).
-    conv.require_state(
-        session, STATE_WAITING_SKIN_TONE, STATE_WAITING_CHANGE_SELECTION, STATE_WAITING_INPUT_METHOD
-    )
+    conv.require_state(session, STATE_WAITING_SKIN_TONE, STATE_WAITING_CHANGE_SELECTION)
 
     conv.log_message(session, payload.skin_tone, "BUYER")
 
@@ -280,8 +273,7 @@ def confirm(session_id: int, payload: ConfirmRequest, db: DBSession = Depends(ge
     debug = None
     if payload.include_debug:
         debug = {
-            "skin_membership": seasonal_result.fired_rules,
-            "y1_continuous": float(seasonal_result.y1_continuous),
+            "fired_rules": seasonal_result.fired_rules,
             "seasonal_membership": seasonal_result.seasonal_membership,
         }
 
@@ -293,7 +285,6 @@ def confirm(session_id: int, payload: ConfirmRequest, db: DBSession = Depends(ge
         "message": response["message"],
         "quick_replies": response["quick_replies"],
         "seasonal_result": {
-            "y1_continuous": float(seasonal_result.y1_continuous),
             "seasonal_type": seasonal_result.seasonal_code,
             "seasonal_name": seasonal_result.seasonal_name,
             "score_seasonal": float(seasonal_result.score_seasonal),
@@ -314,7 +305,7 @@ def filter_recommendations(session_id: int, payload: FilterRequest, db: DBSessio
     aiml = AIMLInterpreter(db)
 
     session = conv.get_active_session(session_id)
-    conv.require_state(session, STATE_SHOWING_RECOMMENDATION, STATE_SHOWING_VISUAL_RECOMMENDATION)
+    conv.require_state(session, STATE_SHOWING_RECOMMENDATION)
     conv.log_message(session, f"Filter: {payload.criteria}", "BUYER")
 
     rec_service = RecommendationService(db)
@@ -361,7 +352,7 @@ def colors_to_avoid(session_id: int, db: DBSession = Depends(get_db)):
     aiml = AIMLInterpreter(db)
 
     session = conv.get_active_session(session_id)
-    conv.require_state(session, STATE_SHOWING_RECOMMENDATION, STATE_SHOWING_VISUAL_RECOMMENDATION)
+    conv.require_state(session, STATE_SHOWING_RECOMMENDATION)
     conv.log_message(session, "Tampilkan warna yang sebaiknya dihindari", "BUYER")
 
     rec_service = RecommendationService(db)
@@ -397,20 +388,8 @@ def free_text(session_id: int, payload: FreeTextRequest, db: DBSession = Depends
             db.commit()
             return set_gender(session_id, GenderRequest(gender=code), db)
 
-    # Pilihan metode input lewat teks bebas (FR-IMG-01)
-    if session.conversation_state == STATE_WAITING_INPUT_METHOD:
-        from app.api.v1.endpoints.image_analysis import choose_input_method, normalize_input_method
-        from app.schemas.conversation import InputMethodRequest
-
-        method = normalize_input_method(payload.message)
-        if method:
-            db.commit()
-            return choose_input_method(session_id, InputMethodRequest(method=method), db)
-
     # Try interpret as skin tone first if waiting
-    if session.conversation_state in (
-        STATE_WAITING_SKIN_TONE, STATE_WAITING_CHANGE_SELECTION, STATE_WAITING_INPUT_METHOD
-    ):
+    if session.conversation_state in (STATE_WAITING_SKIN_TONE, STATE_WAITING_CHANGE_SELECTION):
         code = normalize_skin_tone(payload.message)
         if code:
             db.commit()
@@ -461,10 +440,6 @@ def _serialize_items_for_response(items: list[dict]) -> list[dict]:
             "label": item["label"],
             "label_indonesian": item["label_indonesian"],
             "colors": item["colors"],
-            "vton_ready": item.get("vton_ready", False),
-            "vton_supported": item.get("vton_supported", False),
-            "vton_asset_tier": item.get("vton_asset_tier"),
-            "tryon_quality_mode": item.get("tryon_quality_mode"),
         })
     return out
 

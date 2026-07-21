@@ -36,23 +36,16 @@ def rgb_to_hsv(r: int, g: int, b: int) -> tuple[float, float, float]:
 
 
 def hue_to_color_temperature(h: float, s: float) -> float:
+    """CT(H) = 2 x |H - 180| / 180 (Persamaan 7).
+
+    Jarak sudut hue terhadap pusat zona Cool (H=180 derajat), dinormalisasi
+    ke rentang [0, 2]. Akromatik (S=0) ditetapkan netral (1.0).
+    """
     if s == 0:
         return 1.0
 
     h = h % 360.0
-
-    if 0 <= h <= 90:
-        return clamp(1.2 + 0.8 * (1 - abs(h - 45) / 45), 1.2, 2.0)
-    if 90 < h < 150:
-        return 1.0
-    if 150 <= h <= 270:
-        return clamp(0.8 * (1 - abs(h - 210) / 60), 0.0, 0.8)
-    if 270 < h < 330:
-        return 1.0
-    if 330 <= h <= 360:
-        return clamp(1.2 + 0.8 * (1 - abs(h - 345) / 15), 1.2, 2.0)
-
-    return 1.0
+    return clamp(2.0 * abs(h - 180.0) / 180.0, 0.0, 2.0)
 
 
 def hsv_to_color_brightness(v: float) -> float:

@@ -1,9 +1,8 @@
 """Reference-template registry.
 
 Every generated image is a recolor of one existing template asset. Geometry,
-framing, background, face anchors and VTON eligibility tier are **inherited** from
-the template's existing seed entries (``FACE_ANCHORS`` + ``VTON_ASSET_SEED``),
-imported read-only — recoloring changes colour only and can never upgrade a tier.
+framing, background and face anchors are **inherited** from the template's
+hand-authored spec below, read-only — recoloring changes colour only.
 """
 from __future__ import annotations
 
@@ -14,14 +13,6 @@ from typing import Dict, List, Optional, Sequence
 import numpy as np
 
 from app.catalog_gen import paths
-from app.seed.seed_visual_assets import FACE_ANCHORS
-from app.seed.seed_vton_assets import VTON_ASSET_SEED
-from app.models.product_vton_asset import (
-    TIER_READY,
-    TIER_EXPERIMENTAL,
-    TIER_LIMITED,
-    TIER_NOT_SUPPORTED,
-)
 
 
 # Garment-type taxonomy derived from the template filename (FR-DATA-02): category
@@ -33,13 +24,31 @@ _GARMENT_RULES = (
     ("hijab", "Hijab", "Aksesoris", "FEMALE"),
 )
 
-# Prefer clean front full-garment (vton_ready) templates as primary recolor bases;
-# recoloring cannot fix a bad angle/crop, so lesser tiers are sampled less often.
-_TIER_WEIGHT = {
-    TIER_READY: 1.0,
-    TIER_EXPERIMENTAL: 0.4,
-    TIER_LIMITED: 0.3,
-    TIER_NOT_SUPPORTED: 0.15,
+# Hand-authored per-template specs: face anchor box (cx, cy, w as fraction of the
+# photo's dimensions) for masking, plus category/view/quality metadata used to
+# weight which templates get recolored most often (prefer clean front full-garment
+# shots; quality doubles as the sampling weight since higher-quality templates
+# make better recolor bases).
+_TEMPLATE_SPECS = {
+    "/koko-putih.png":  {"cx": 0.47,  "cy": -0.145, "w": 0.28,  "category": "upper", "view": "FRONT",   "quality": 0.92, "notes": "Foto depan, garment utuh, background bersih."},
+    "/koko-abu.png":    {"cx": 0.55,  "cy": -0.045, "w": 0.25,  "category": "upper", "view": "FRONT",   "quality": 0.90, "notes": "Foto depan, garment utuh."},
+    "/koko-biru.png":   {"cx": 0.42,  "cy": -0.135, "w": 0.30,  "category": "upper", "view": "FRONT",   "quality": 0.90, "notes": "Foto depan, garment utuh."},
+    "/koko-hijau.png":  {"cx": 0.39,  "cy": -0.165, "w": 0.30,  "category": "upper", "view": "FRONT",   "quality": 0.88, "notes": "Foto depan, garment utuh."},
+    "/koko-coklat.png": {"cx": 0.45,  "cy": -0.075, "w": 0.22,  "category": "upper", "view": "FRONT",   "quality": 0.88, "notes": "Foto depan, garment utuh."},
+    "/koko-bt.png":     {"cx": 0.42,  "cy": -0.125, "w": 0.28,  "category": "upper", "view": "ANGLED",  "quality": 0.62, "notes": "Foto motif batik dengan angle sedikit miring."},
+    "/koko-t.png":      {"cx": 0.50,  "cy": 0.11,   "w": 0.22,  "category": "upper", "view": "FRONT",   "quality": 0.85, "notes": "Foto depan."},
+    "/koko-w.png":      {"cx": 0.56,  "cy": -0.055, "w": 0.24,  "category": "upper", "view": "FRONT",   "quality": 0.85, "notes": "Foto depan, tekstur waffle."},
+    # Foto detail close-up: garment tidak utuh -> kualitas rendah.
+    "/koko.png":        {"cx": 0.55,  "cy": -0.17,  "w": 0.42,  "category": "upper", "view": "PARTIAL", "quality": 0.40, "notes": "Foto close-up parsial; garment tidak utuh."},
+    "/abaya-hitam.png": {"cx": 0.56,  "cy": -0.03,  "w": 0.22,  "category": "dress", "view": "FRONT",   "quality": 0.65, "notes": "Warna gelap, detail kurang kontras."},
+    "/gamis-pink.png":  {"cx": 0.475, "cy": 0.05,   "w": 0.145, "category": "dress", "view": "FRONT",   "quality": 0.90, "notes": "Foto depan, garment utuh."},
+    # Angle menyamping signifikan -> kualitas rendah.
+    "/gamis-coklat.png": {"cx": 0.34, "cy": 0.08,   "w": 0.23,  "category": "dress", "view": "ANGLED",  "quality": 0.45, "notes": "Angle menyamping signifikan."},
+    "/gamis-p.png":     {"cx": 0.50,  "cy": 0.07,   "w": 0.15,  "category": "dress", "view": "FRONT",   "quality": 0.90, "notes": "Foto depan, garment utuh."},
+    "/gamis.png":       {"cx": 0.47,  "cy": -0.055, "w": 0.20,  "category": "dress", "view": "FRONT",   "quality": 0.88, "notes": "Foto depan, garment utuh."},
+    "/abaya.png":       {"cx": 0.41,  "cy": 0.01,   "w": 0.22,  "category": "dress", "view": "FRONT",   "quality": 0.66, "notes": "Detail garment kurang tajam."},
+    # Aksesoris kepala.
+    "/hijab.png":       {"cx": 0.33,  "cy": 0.375,  "w": 0.38,  "category": None,    "view": "FRONT",   "quality": 0.10, "notes": "Aksesoris kepala."},
 }
 
 
@@ -58,8 +67,7 @@ class Template:
     garment_word: str       # human label: Koko/Gamis/Abaya/Hijab
     category: str           # Atasan/Dress/Aksesoris
     target_gender: str      # MALE/FEMALE
-    anchor: dict            # inherited FACE_ANCHORS entry
-    tier: str               # inherited VTON tier (never upgraded downstream)
+    anchor: dict            # inherited face-box anchor {cx, cy, w}
     garment_category: Optional[str]  # upper/dress/... (None for hijab)
     view_angle: str
     base_quality: float
@@ -81,17 +89,9 @@ class Template:
 
 def build_templates() -> List[Template]:
     templates: List[Template] = []
-    for image_url, spec in VTON_ASSET_SEED.items():
-        # Skip generated variants that may have been additively merged into the seed
-        # lookups — only the original hand-authored assets are recolor templates.
-        if image_url.startswith("/generated/"):
-            continue
-        anchor = FACE_ANCHORS.get(image_url)
-        if anchor is None:
-            # A template without a face anchor cannot inherit try-on geometry; skip.
-            continue
+    for image_url, spec in _TEMPLATE_SPECS.items():
         key, garment, category, gender = _classify(image_url)
-        tier = spec["tier"]
+        quality = float(spec.get("quality", 0.5))
         templates.append(
             Template(
                 image_url=image_url,
@@ -99,13 +99,12 @@ def build_templates() -> List[Template]:
                 garment_word=garment,
                 category=category,
                 target_gender=gender,
-                anchor=dict(anchor),
-                tier=tier,
+                anchor={"cx": spec["cx"], "cy": spec["cy"], "w": spec["w"]},
                 garment_category=spec.get("category"),
                 view_angle=spec.get("view", "FRONT"),
-                base_quality=float(spec.get("quality", 0.5)),
+                base_quality=quality,
                 notes=spec.get("notes", ""),
-                weight=_TIER_WEIGHT.get(tier, 0.3),
+                weight=quality,
             )
         )
     templates.sort(key=lambda t: t.image_url)  # stable order for determinism

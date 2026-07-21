@@ -1,17 +1,34 @@
-"""Product ranking using ROC for multi-color products. PRD Section 17.10."""
+"""Agregasi Skor Produk multi-warna (Rank Order Centroid). Bab IV.2.7.5 / II.1.8."""
+from typing import Optional
+
 from app.services.color_match_service import label_for_score, LABEL_INDONESIAN
 
 
 def roc_weights(n: int) -> list[float]:
+    """Mode 1 - Rank Order Centroid (Persamaan 10, Barron & Barrett, 1996)."""
     if n < 1:
         return []
     return [(1 / n) * sum(1 / j for j in range(k, n + 1)) for k in range(1, n + 1)]
 
 
-def aggregate_product_score(color_scores: list[float]) -> dict:
-    """Given Y2 scores ordered by color_rank (dominant first), compute ROC weighted total."""
+def percentage_weights(percentages: list[float]) -> list[float]:
+    """Mode 2 - Persentase Langsung (Persamaan 11): w(k) = persentase_k / 100."""
+    return [p / 100.0 for p in percentages]
+
+
+def resolve_weights(n: int, percentages: Optional[list[Optional[float]]] = None) -> tuple[list[float], str]:
+    """Pilih Mode 2 bila seluruh warna punya persentase pasti, selain itu Mode 1 (ROC)."""
+    if percentages and len(percentages) == n and all(p is not None for p in percentages):
+        return percentage_weights([float(p) for p in percentages]), "PERCENTAGE"
+    return roc_weights(n), "ROC"
+
+
+def aggregate_product_score(
+    color_scores: list[float], percentages: Optional[list[Optional[float]]] = None
+) -> dict:
+    """Gabungkan Y2 tiap warna (urut color_rank, Warna ke-1 dulu) menjadi Skor Produk (Persamaan 12)."""
     n = len(color_scores)
-    weights = roc_weights(n)
+    weights, weight_mode = resolve_weights(n, percentages)
     total = 0.0
     parts = []
     for w, y2 in zip(weights, color_scores):
@@ -23,6 +40,7 @@ def aggregate_product_score(color_scores: list[float]) -> dict:
     return {
         "total_roc_score": total,
         "weights": weights,
+        "weight_mode": weight_mode,
         "parts": parts,
         "label": label,
         "label_indonesian": LABEL_INDONESIAN[label],

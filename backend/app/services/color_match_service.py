@@ -2,12 +2,12 @@
 from app.services.fuzzy_membership import memberships, CT_SETS, CB_SETS
 
 
-# Singleton outputs per output category
+# Singleton per kategori = titik tengah band (Tabel IV.26).
 SUITABILITY_SINGLETONS = {
-    "VERY_SUITABLE": 0.90,
-    "SUITABLE": 0.65,
-    "LESS_SUITABLE": 0.35,
-    "NOT_SUITABLE": 0.10,
+    "VERY_SUITABLE": 0.875,
+    "SUITABLE": 0.625,
+    "LESS_SUITABLE": 0.375,
+    "NOT_SUITABLE": 0.125,
 }
 
 # (seasonal_set, ct_set, cb_set, output_label, rule_id)
@@ -52,11 +52,12 @@ LAYER2_RULES = [
 
 
 def label_for_score(score: float) -> str:
-    if score >= 0.80:
+    """Band kategori = pembagian rata [0,1] menjadi 4 bagian (Tabel IV.26)."""
+    if score >= 0.75:
         return "VERY_SUITABLE"
-    if score >= 0.55:
+    if score >= 0.5:
         return "SUITABLE"
-    if score >= 0.30:
+    if score >= 0.25:
         return "LESS_SUITABLE"
     return "NOT_SUITABLE"
 

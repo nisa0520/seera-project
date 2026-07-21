@@ -7,9 +7,6 @@ from app import models  # noqa: F401  - register models
 from app.seed.seed_aiml_categories import seed_aiml
 from app.seed.seed_education import seed_education
 from app.seed.seed_catalog_dummy import seed_catalog
-from app.seed.seed_backgrounds import seed_backgrounds
-from app.seed.seed_visual_assets import seed_visual_assets
-from app.seed.seed_vton_assets import seed_vton_assets
 
 
 def run() -> None:
@@ -26,12 +23,6 @@ def run() -> None:
         seed_education(db)
         logger.info("Seeding categories, colors, and products...")
         seed_catalog(db)
-        logger.info("Seeding background presets...")
-        seed_backgrounds(db)
-        logger.info("Seeding product visual assets (try-on anchors)...")
-        seed_visual_assets(db)
-        logger.info("Seeding VTON garment assets...")
-        seed_vton_assets(db)
         logger.info("Seeding complete.")
     finally:
         db.close()

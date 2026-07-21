@@ -54,28 +54,6 @@ EDU_TOPICS_QR = [
     {"label": "Mulai rekomendasi", "value": "START_RECOMMENDATION"},
 ]
 
-INPUT_METHOD_QR = [
-    {"label": "Gunakan Foto Wajah", "value": "INPUT_METHOD_IMAGE", "primary": True},
-    {"label": "Pilih Manual", "value": "INPUT_METHOD_MANUAL"},
-]
-
-IMAGE_RESULT_QR = [
-    {"label": "Lanjutkan", "value": "IMAGE_CONFIRM", "primary": True},
-    {"label": "Ubah Hasil", "value": "IMAGE_ADJUST"},
-    {"label": "Ambil Ulang Foto", "value": "IMAGE_RETAKE"},
-]
-
-IMAGE_FAILED_QR = [
-    {"label": "Ambil ulang foto", "value": "IMAGE_RETAKE", "primary": True},
-    {"label": "Lanjut input manual", "value": "INPUT_METHOD_MANUAL"},
-]
-
-VISUAL_MATCH_QR = [
-    {"label": "Kembali ke rekomendasi", "value": "BACK_TO_RECOMMENDATION"},
-    {"label": "Beri umpan balik", "value": "FEEDBACK"},
-]
-
-
 AIML_SEED = [
     {
         "pattern": "WELCOME_AND_GENDER_LIST",
@@ -173,64 +151,6 @@ AIML_SEED = [
         "pattern": "FEEDBACK_THANKS",
         "template": "Terima kasih atas umpan balik Anda!",
         "quick_replies": None,
-    },
-    # ---- Image-based skin detection flow (PRD Image-Based Chatbot) ----
-    {
-        "pattern": "INPUT_METHOD_OPTIONS",
-        "template": (
-            "Mau cek warna kulit dengan foto wajah atau pilih manual? "
-            "Dengan foto wajah, saya bisa mendeteksi skin tone dan undertone Anda secara otomatis. "
-            "Foto hanya dipakai untuk analisis warna kulit pada sesi ini dan tidak disimpan permanen."
-        ),
-        "quick_replies": INPUT_METHOD_QR,
-    },
-    {
-        "pattern": "IMAGE_MODE_INSTRUCTIONS",
-        "template": (
-            "Silakan ambil foto wajah Anda. Pastikan wajah berada di dalam garis panduan, "
-            "pencahayaan cukup, tidak menggunakan filter kamera, dan hindari makeup tebal. "
-            "Anda juga bisa mengunggah foto dari galeri (JPG, JPEG, atau PNG)."
-        ),
-        "quick_replies": [
-            {"label": "Kembali ke input manual", "value": "INPUT_METHOD_MANUAL"},
-        ],
-    },
-    {
-        "pattern": "IMAGE_ANALYSIS_RESULT",
-        "template": (
-            "Hasil deteksi dari foto Anda — skin tone: {skin_tone_name} (Tipe {skin_tone_code}), "
-            "undertone: {undertone_name}. Tingkat keyakinan: skin tone {skin_confidence_pct}%, "
-            "undertone {undertone_confidence_pct}%. Apakah hasil ini sudah sesuai?"
-        ),
-        "quick_replies": IMAGE_RESULT_QR,
-    },
-    {
-        "pattern": "IMAGE_ANALYSIS_LOW_CONFIDENCE",
-        "template": (
-            "Hasil deteksi dari foto Anda — skin tone: {skin_tone_name} (Tipe {skin_tone_code}), "
-            "undertone: {undertone_name}. Namun tingkat keyakinan deteksi cukup rendah "
-            "(skin tone {skin_confidence_pct}%, undertone {undertone_confidence_pct}%). "
-            "Pencahayaan, filter, atau makeup dapat memengaruhi hasil. "
-            "Silakan periksa kembali, ubah hasil, atau ambil ulang foto."
-        ),
-        "quick_replies": IMAGE_RESULT_QR,
-    },
-    {
-        "pattern": "IMAGE_ANALYSIS_FAILED",
-        "template": (
-            "Maaf, foto belum bisa diproses. {reason} "
-            "Anda bisa mencoba lagi atau melanjutkan dengan input manual."
-        ),
-        "quick_replies": IMAGE_FAILED_QR,
-    },
-    {
-        "pattern": "VISUAL_MATCH_READY",
-        "template": (
-            "Virtual try-on sudah siap! Wajah Anda dipasangkan langsung pada foto asli produk "
-            "pilihan, jadi Anda bisa melihat diri Anda mengenakan produk tersebut. "
-            "Silakan ganti produk lain dari daftar rekomendasi atau pilih latar belakang yang berbeda."
-        ),
-        "quick_replies": VISUAL_MATCH_QR,
     },
 ]
 

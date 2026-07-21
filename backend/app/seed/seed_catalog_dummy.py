@@ -357,6 +357,33 @@ def seed_colors(db: DBSession) -> dict[str, int]:
     return name_to_id
 
 
+RANK_ROLES = ["DOMINANT", "SECONDARY", "ACCENT"]
+
+
+def _normalize_product_colors(colors: list) -> list:
+    """Batasi ke maks 3 warna (rule of three, Subbab IV.2.7.5) & normalisasi persentase.
+
+    Beberapa entri hasil generator lama menyertakan warna ke-4 (role MOTIF, kini
+    dihapus dari desain). Warna dengan persentase terbesar yang dipertahankan;
+    sisanya dibuang dan persentase dinormalisasi ulang agar tetap berjumlah 100.
+    """
+    if len(colors) <= 3:
+        return colors
+    top3 = sorted(colors, key=lambda c: c[2], reverse=True)[:3]
+    total_pct = sum(c[2] for c in top3)
+    if total_pct <= 0:
+        return [(name, RANK_ROLES[i], round(100.0 / 3, 1)) for i, (name, _role, _pct) in enumerate(top3)]
+    normalized = [
+        (name, RANK_ROLES[i], round(pct * 100.0 / total_pct, 1))
+        for i, (name, _role, pct) in enumerate(top3)
+    ]
+    residual = round(100.0 - sum(p for _, _, p in normalized), 1)
+    if residual:
+        name0, role0, pct0 = normalized[0]
+        normalized[0] = (name0, role0, round(pct0 + residual, 1))
+    return normalized
+
+
 def seed_categories(db: DBSession) -> dict[str, int]:
     out: dict[str, int] = {}
     for name in CATEGORIES:
@@ -412,7 +439,7 @@ def seed_products(db: DBSession) -> None:
                 db.delete(pc)
             db.flush()
 
-        for idx, (color_name, role, pct) in enumerate(entry["colors"], start=1):
+        for idx, (color_name, role, pct) in enumerate(_normalize_product_colors(entry["colors"]), start=1):
             db.add(
                 ProductColor(
                     product_id=product.id,
